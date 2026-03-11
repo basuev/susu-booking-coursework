@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/tbasuev/susu-booking-coursework/internal/domain"
-	"github.com/tbasuev/susu-booking-coursework/pkg/id"
+	"github.com/basuev/susu-booking-coursework/internal/domain"
+	"github.com/basuev/susu-booking-coursework/pkg/id"
 )
 
 type Booking struct {

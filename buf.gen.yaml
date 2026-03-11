@@ -3,7 +3,7 @@ managed:
   enabled: true
   override:
     - file_option: go_package_prefix
-      value: github.com/tbasuev/susu-booking-coursework/gen/go
+      value: github.com/basuev/susu-booking-coursework/gen/go
 plugins:
   - remote: buf.build/protocolbuffers/go
     out: gen/go

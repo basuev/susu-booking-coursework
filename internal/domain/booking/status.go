@@ -3,7 +3,7 @@ package booking
 import (
 	"fmt"
 
-	"github.com/tbasuev/susu-booking-coursework/internal/domain"
+	"github.com/basuev/susu-booking-coursework/internal/domain"
 )
 
 type Status string
