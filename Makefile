@@ -1,4 +1,4 @@
-.PHONY: build run test lint clean
+.PHONY: build run test lint clean compose-up compose-down
 
 APP_NAME := booking-svc
 BUILD_DIR := bin
@@ -17,3 +17,9 @@ lint:
 
 clean:
 	rm -rf $(BUILD_DIR)
+
+compose-up:
+	docker compose up -d
+
+compose-down:
+	docker compose down
