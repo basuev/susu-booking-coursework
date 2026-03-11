@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/tbasuev/susu-booking-coursework/internal/domain"
+	"github.com/basuev/susu-booking-coursework/internal/domain"
 )
 
 type StayPeriod struct {
