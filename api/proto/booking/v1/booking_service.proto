@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package booking.v1;
+
+import "booking/v1/types.proto";
+
+service BookingService {
+  rpc CreateBooking(CreateBookingRequest) returns (CreateBookingResponse);
+  rpc GetBooking(GetBookingRequest) returns (GetBookingResponse);
+  rpc ListBookings(ListBookingsRequest) returns (ListBookingsResponse);
+  rpc CancelBooking(CancelBookingRequest) returns (CancelBookingResponse);
+  rpc ApproveBooking(ApproveBookingRequest) returns (ApproveBookingResponse);
+  rpc RejectBooking(RejectBookingRequest) returns (RejectBookingResponse);
+}

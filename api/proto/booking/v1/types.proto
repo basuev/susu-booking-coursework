@@ -1,0 +1,105 @@
+syntax = "proto3";
+
+package booking.v1;
+
+import "google/protobuf/timestamp.proto";
+
+enum BookingStatus {
+  BOOKING_STATUS_UNSPECIFIED = 0;
+  BOOKING_STATUS_PENDING = 1;
+  BOOKING_STATUS_CONFIRMED = 2;
+  BOOKING_STATUS_APPROVED = 3;
+  BOOKING_STATUS_REJECTED = 4;
+  BOOKING_STATUS_CANCELLED = 5;
+}
+
+message Money {
+  string amount = 1;   // decimal string, e.g. "199.99"
+  string currency = 2; // ISO 4217
+}
+
+message OfferSnapshot {
+  string offer_id = 1;
+  string hotel_id = 2;
+  string room_type = 3;
+  Money price_per_night = 4;
+}
+
+message Booking {
+  string id = 1;
+  string guest_id = 2;
+  OfferSnapshot offer = 3;
+  google.protobuf.Timestamp check_in = 4;
+  google.protobuf.Timestamp check_out = 5;
+  Money total_price = 6;
+  BookingStatus status = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+message BookingSummary {
+  string id = 1;
+  string guest_id = 2;
+  string hotel_id = 3;
+  google.protobuf.Timestamp check_in = 4;
+  google.protobuf.Timestamp check_out = 5;
+  Money total_price = 6;
+  BookingStatus status = 7;
+  google.protobuf.Timestamp created_at = 8;
+}
+
+message CreateBookingRequest {
+  string idempotency_key = 1;
+  string guest_id = 2;
+  OfferSnapshot offer = 3;
+  google.protobuf.Timestamp check_in = 4;
+  google.protobuf.Timestamp check_out = 5;
+}
+
+message CreateBookingResponse {
+  Booking booking = 1;
+}
+
+message GetBookingRequest {
+  string booking_id = 1;
+}
+
+message GetBookingResponse {
+  Booking booking = 1;
+}
+
+message ListBookingsRequest {
+  string guest_id = 1;
+  int32 page_size = 2;
+  string page_token = 3;
+}
+
+message ListBookingsResponse {
+  repeated BookingSummary bookings = 1;
+  string next_page_token = 2;
+}
+
+message CancelBookingRequest {
+  string booking_id = 1;
+}
+
+message CancelBookingResponse {
+  Booking booking = 1;
+}
+
+message ApproveBookingRequest {
+  string booking_id = 1;
+}
+
+message ApproveBookingResponse {
+  Booking booking = 1;
+}
+
+message RejectBookingRequest {
+  string booking_id = 1;
+  string reason = 2;
+}
+
+message RejectBookingResponse {
+  Booking booking = 1;
+}
