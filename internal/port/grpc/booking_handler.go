@@ -2,22 +2,33 @@ package grpc
 
 import (
 	"context"
+	"fmt"
+	"strconv"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	pb "github.com/basuev/susu-booking-coursework/gen/go/booking/v1"
 	"github.com/basuev/susu-booking-coursework/internal/app/command"
 	"github.com/basuev/susu-booking-coursework/internal/app/query"
+	"github.com/basuev/susu-booking-coursework/internal/domain"
+)
+
+const (
+	defaultPageSize = 20
+	maxPageSize     = 100
 )
 
 type BookingHandler struct {
-	createBooking *command.CreateBookingHandler
-	cancelBooking *command.CancelBookingHandler
+	pb.UnimplementedBookingServiceServer
+
+	createBooking  *command.CreateBookingHandler
+	cancelBooking  *command.CancelBookingHandler
 	approveBooking *command.ApproveBookingHandler
 	rejectBooking  *command.RejectBookingHandler
-	getBooking    *query.GetBookingHandler
-	listBookings  *query.ListBookingsHandler
+	getBooking     *query.GetBookingHandler
+	listBookings   *query.ListBookingsHandler
 }
 
 func NewBookingHandler(
@@ -39,30 +50,144 @@ func NewBookingHandler(
 }
 
 func (h *BookingHandler) Register(gs *grpc.Server) {
-	// Registration will be implemented when generated protobuf code is available.
-	_ = gs
+	pb.RegisterBookingServiceServer(gs, h)
 }
 
-func (h *BookingHandler) CreateBooking(_ context.Context, _ any) (any, error) {
-	return nil, status.Error(codes.Unimplemented, "not implemented")
+func (h *BookingHandler) CreateBooking(ctx context.Context, req *pb.CreateBookingRequest) (*pb.CreateBookingResponse, error) {
+	if req.GetIdempotencyKey() == "" {
+		return nil, status.Error(codes.InvalidArgument, "idempotency_key is required")
+	}
+
+	offer, err := offerFromProto(req.GetOffer())
+	if err != nil {
+		return nil, mapDomainError(err)
+	}
+
+	if req.GetCheckIn() == nil || req.GetCheckOut() == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "%s: check_in and check_out are required", domain.ErrInvalidArgument)
+	}
+
+	cmd := command.CreateBooking{
+		IdempotencyKey: req.GetIdempotencyKey(),
+		GuestID:        req.GetGuestId(),
+		OfferID:        offer.OfferID(),
+		HotelID:        offer.HotelID(),
+		RoomType:       offer.RoomType(),
+		PricePerNight:  offer.Price().Amount(),
+		Currency:       offer.Price().Currency(),
+		CheckIn:        req.GetCheckIn().AsTime(),
+		CheckOut:       req.GetCheckOut().AsTime(),
+	}
+
+	b, err := h.createBooking.Handle(ctx, cmd)
+	if err != nil {
+		return nil, mapDomainError(err)
+	}
+
+	return &pb.CreateBookingResponse{Booking: bookingToProto(b)}, nil
 }
 
-func (h *BookingHandler) GetBooking(_ context.Context, _ any) (any, error) {
-	return nil, status.Error(codes.Unimplemented, "not implemented")
+func (h *BookingHandler) GetBooking(ctx context.Context, req *pb.GetBookingRequest) (*pb.GetBookingResponse, error) {
+	if req.GetBookingId() == "" {
+		return nil, status.Error(codes.InvalidArgument, "booking_id is required")
+	}
+
+	b, err := h.getBooking.Handle(ctx, query.GetBooking{BookingID: req.GetBookingId()})
+	if err != nil {
+		return nil, mapDomainError(err)
+	}
+
+	return &pb.GetBookingResponse{Booking: bookingToProto(b)}, nil
 }
 
-func (h *BookingHandler) ListBookings(_ context.Context, _ any) (any, error) {
-	return nil, status.Error(codes.Unimplemented, "not implemented")
+func (h *BookingHandler) ListBookings(ctx context.Context, req *pb.ListBookingsRequest) (*pb.ListBookingsResponse, error) {
+	if req.GetGuestId() == "" {
+		return nil, status.Error(codes.InvalidArgument, "guest_id is required")
+	}
+
+	pageSize := int(req.GetPageSize())
+	if pageSize <= 0 {
+		pageSize = defaultPageSize
+	}
+	if pageSize > maxPageSize {
+		pageSize = maxPageSize
+	}
+
+	offset, err := parsePageToken(req.GetPageToken())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid page_token")
+	}
+
+	items, err := h.listBookings.Handle(ctx, query.ListBookings{
+		GuestID:  req.GetGuestId(),
+		PageSize: pageSize,
+		Offset:   offset,
+	})
+	if err != nil {
+		return nil, mapDomainError(err)
+	}
+
+	summaries := make([]*pb.BookingSummary, 0, len(items))
+	for _, b := range items {
+		summaries = append(summaries, bookingToSummary(b))
+	}
+
+	resp := &pb.ListBookingsResponse{Bookings: summaries}
+	if len(items) == pageSize {
+		resp.NextPageToken = strconv.Itoa(offset + pageSize)
+	}
+	return resp, nil
 }
 
-func (h *BookingHandler) CancelBooking(_ context.Context, _ any) (any, error) {
-	return nil, status.Error(codes.Unimplemented, "not implemented")
+func (h *BookingHandler) CancelBooking(ctx context.Context, req *pb.CancelBookingRequest) (*pb.CancelBookingResponse, error) {
+	if req.GetBookingId() == "" {
+		return nil, status.Error(codes.InvalidArgument, "booking_id is required")
+	}
+
+	b, err := h.cancelBooking.Handle(ctx, command.CancelBooking{BookingID: req.GetBookingId()})
+	if err != nil {
+		return nil, mapDomainError(err)
+	}
+
+	return &pb.CancelBookingResponse{Booking: bookingToProto(b)}, nil
 }
 
-func (h *BookingHandler) ApproveBooking(_ context.Context, _ any) (any, error) {
-	return nil, status.Error(codes.Unimplemented, "not implemented")
+func (h *BookingHandler) ApproveBooking(ctx context.Context, req *pb.ApproveBookingRequest) (*pb.ApproveBookingResponse, error) {
+	if req.GetBookingId() == "" {
+		return nil, status.Error(codes.InvalidArgument, "booking_id is required")
+	}
+
+	b, err := h.approveBooking.Handle(ctx, command.ApproveBooking{BookingID: req.GetBookingId()})
+	if err != nil {
+		return nil, mapDomainError(err)
+	}
+
+	return &pb.ApproveBookingResponse{Booking: bookingToProto(b)}, nil
 }
 
-func (h *BookingHandler) RejectBooking(_ context.Context, _ any) (any, error) {
-	return nil, status.Error(codes.Unimplemented, "not implemented")
+func (h *BookingHandler) RejectBooking(ctx context.Context, req *pb.RejectBookingRequest) (*pb.RejectBookingResponse, error) {
+	if req.GetBookingId() == "" {
+		return nil, status.Error(codes.InvalidArgument, "booking_id is required")
+	}
+
+	b, err := h.rejectBooking.Handle(ctx, command.RejectBooking{
+		BookingID: req.GetBookingId(),
+		Reason:    req.GetReason(),
+	})
+	if err != nil {
+		return nil, mapDomainError(err)
+	}
+
+	return &pb.RejectBookingResponse{Booking: bookingToProto(b)}, nil
+}
+
+func parsePageToken(token string) (int, error) {
+	if token == "" {
+		return 0, nil
+	}
+	offset, err := strconv.Atoi(token)
+	if err != nil || offset < 0 {
+		return 0, fmt.Errorf("invalid page token")
+	}
+	return offset, nil
 }
