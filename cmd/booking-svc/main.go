@@ -3,13 +3,17 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"log/slog"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 
+	"github.com/basuev/susu-booking-coursework/internal/adapter/natsx"
+	"github.com/basuev/susu-booking-coursework/internal/adapter/outbox"
 	"github.com/basuev/susu-booking-coursework/internal/adapter/postgres"
 	"github.com/basuev/susu-booking-coursework/internal/app/command"
 	"github.com/basuev/susu-booking-coursework/internal/app/query"
@@ -29,14 +33,23 @@ func main() {
 		slog.Error("failed to open database", "error", err)
 		os.Exit(1)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	if err := db.PingContext(ctx); err != nil {
 		slog.Error("failed to ping database", "error", err)
 		os.Exit(1)
 	}
 
+	natsClient, err := natsx.Connect(ctx, cfg.NATSUrl)
+	if err != nil {
+		slog.Error("failed to connect to NATS", "error", err)
+		os.Exit(1)
+	}
+	defer natsClient.Close()
+
 	repo := postgres.NewBookingRepo(db)
+	outboxRepo := outbox.NewRepo(db)
+	outboxWorker := outbox.NewWorker(outboxRepo, natsClient)
 
 	createHandler := command.NewCreateBookingHandler(repo)
 	cancelHandler := command.NewCancelBookingHandler(repo)
@@ -56,16 +69,32 @@ func main() {
 		os.Exit(1)
 	}
 
-	errCh := make(chan error, 1)
-	go func() { errCh <- srv.Start() }()
+	var wg sync.WaitGroup
+	grpcErr := make(chan error, 1)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		grpcErr <- srv.Start()
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if err := outboxWorker.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
+			slog.Error("outbox worker stopped", "error", err)
+		}
+	}()
 
 	select {
 	case <-ctx.Done():
-		srv.Shutdown(context.Background())
-	case err := <-errCh:
+		slog.Info("shutdown signal received")
+	case err := <-grpcErr:
 		slog.Error("gRPC server error", "error", err)
-		os.Exit(1)
+		cancel()
 	}
+
+	srv.Shutdown(context.Background())
+	wg.Wait()
 }
 
 func setupLogger(level string) {
