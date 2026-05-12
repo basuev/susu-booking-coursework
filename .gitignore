@@ -33,6 +33,3 @@ Thumbs.db
 
 # Dependencies
 vendor/
-
-# Generated
-/gen/
