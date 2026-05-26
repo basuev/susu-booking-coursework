@@ -15,6 +15,7 @@ type Booking struct {
 	stay      StayPeriod
 	total     Money
 	status    Status
+	version   int
 	createdAt time.Time
 	updatedAt time.Time
 	events    []Event
@@ -35,6 +36,7 @@ func NewBooking(guestID string, offer OfferSnapshot, stay StayPeriod) (*Booking,
 		stay:      stay,
 		total:     total,
 		status:    StatusPending,
+		version:   1,
 		createdAt: now,
 		updatedAt: now,
 	}
@@ -59,6 +61,7 @@ func Reconstruct(
 	stay StayPeriod,
 	total Money,
 	status Status,
+	version int,
 	createdAt, updatedAt time.Time,
 ) *Booking {
 	return &Booking{
@@ -68,41 +71,64 @@ func Reconstruct(
 		stay:      stay,
 		total:     total,
 		status:    status,
+		version:   version,
 		createdAt: createdAt,
 		updatedAt: updatedAt,
 	}
 }
 
 func (b *Booking) Cancel() error {
+	oldStatus := b.status
 	newStatus, err := b.status.TransitionTo(StatusCancelled)
 	if err != nil {
 		return err
 	}
 	b.status = newStatus
+	b.version++
 	b.updatedAt = time.Now()
-	b.record(BookingCancelled{BookingID: b.id, Timestamp: b.updatedAt})
+	b.record(BookingCancelled{
+		BookingID: b.id,
+		OldStatus: oldStatus,
+		NewStatus: newStatus,
+		Timestamp: b.updatedAt,
+	})
 	return nil
 }
 
 func (b *Booking) Approve() error {
+	oldStatus := b.status
 	newStatus, err := b.status.TransitionTo(StatusApproved)
 	if err != nil {
 		return err
 	}
 	b.status = newStatus
+	b.version++
 	b.updatedAt = time.Now()
-	b.record(BookingApproved{BookingID: b.id, Timestamp: b.updatedAt})
+	b.record(BookingApproved{
+		BookingID: b.id,
+		OldStatus: oldStatus,
+		NewStatus: newStatus,
+		Timestamp: b.updatedAt,
+	})
 	return nil
 }
 
 func (b *Booking) Reject(reason string) error {
+	oldStatus := b.status
 	newStatus, err := b.status.TransitionTo(StatusRejected)
 	if err != nil {
 		return err
 	}
 	b.status = newStatus
+	b.version++
 	b.updatedAt = time.Now()
-	b.record(BookingRejected{BookingID: b.id, Reason: reason, Timestamp: b.updatedAt})
+	b.record(BookingRejected{
+		BookingID: b.id,
+		OldStatus: oldStatus,
+		NewStatus: newStatus,
+		Reason:    reason,
+		Timestamp: b.updatedAt,
+	})
 	return nil
 }
 
@@ -112,6 +138,7 @@ func (b *Booking) Confirm() error {
 		return err
 	}
 	b.status = newStatus
+	b.version++
 	b.updatedAt = time.Now()
 	return nil
 }
@@ -134,5 +161,6 @@ func (b *Booking) Offer() OfferSnapshot { return b.offer }
 func (b *Booking) Stay() StayPeriod     { return b.stay }
 func (b *Booking) Total() Money         { return b.total }
 func (b *Booking) Status() Status       { return b.status }
+func (b *Booking) Version() int         { return b.version }
 func (b *Booking) CreatedAt() time.Time { return b.createdAt }
 func (b *Booking) UpdatedAt() time.Time { return b.updatedAt }

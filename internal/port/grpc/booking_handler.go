@@ -92,12 +92,20 @@ func (h *BookingHandler) GetBooking(ctx context.Context, req *pb.GetBookingReque
 		return nil, status.Error(codes.InvalidArgument, "booking_id is required")
 	}
 
-	b, err := h.getBooking.Handle(ctx, query.GetBooking{BookingID: req.GetBookingId()})
+	result, err := h.getBooking.Handle(ctx, query.GetBooking{BookingID: req.GetBookingId()})
 	if err != nil {
 		return nil, mapDomainError(err)
 	}
 
-	return &pb.GetBookingResponse{Booking: bookingToProto(b)}, nil
+	history := make([]*pb.StatusHistoryEntry, 0, len(result.History))
+	for _, e := range result.History {
+		history = append(history, statusHistoryToProto(e))
+	}
+
+	return &pb.GetBookingResponse{
+		Booking: bookingToProto(result.Booking),
+		History: history,
+	}, nil
 }
 
 func (h *BookingHandler) ListBookings(ctx context.Context, req *pb.ListBookingsRequest) (*pb.ListBookingsResponse, error) {
@@ -118,11 +126,24 @@ func (h *BookingHandler) ListBookings(ctx context.Context, req *pb.ListBookingsR
 		return nil, status.Error(codes.InvalidArgument, "invalid page_token")
 	}
 
-	items, err := h.listBookings.Handle(ctx, query.ListBookings{
+	q := query.ListBookings{
 		GuestID:  req.GetGuestId(),
 		PageSize: pageSize,
 		Offset:   offset,
-	})
+	}
+	if s, ok := statusFilterFromProto(req.GetStatusFilter()); ok {
+		q.Status = &s
+	}
+	if req.GetCheckInFrom() != nil {
+		t := req.GetCheckInFrom().AsTime()
+		q.CheckInFrom = &t
+	}
+	if req.GetCheckInTo() != nil {
+		t := req.GetCheckInTo().AsTime()
+		q.CheckInTo = &t
+	}
+
+	items, err := h.listBookings.Handle(ctx, q)
 	if err != nil {
 		return nil, mapDomainError(err)
 	}

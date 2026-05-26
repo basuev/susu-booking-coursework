@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/basuev/susu-booking-coursework/internal/adapter/outbox"
@@ -21,19 +22,17 @@ func NewBookingRepo(db *sql.DB) *BookingRepo {
 }
 
 func (r *BookingRepo) Save(ctx context.Context, b *booking.Booking) error {
+	if tx, ok := txFromContext(ctx); ok {
+		return saveInTx(ctx, tx, b)
+	}
+
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("booking_repo.Save begin: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	if err := upsertBooking(ctx, tx, b); err != nil {
-		return err
-	}
-	if err := upsertOfferSnapshot(ctx, tx, b); err != nil {
-		return err
-	}
-	if err := appendOutbox(ctx, tx, b); err != nil {
+	if err := saveInTx(ctx, tx, b); err != nil {
 		return err
 	}
 
@@ -44,20 +43,83 @@ func (r *BookingRepo) Save(ctx context.Context, b *booking.Booking) error {
 	return nil
 }
 
+func saveInTx(ctx context.Context, tx *sql.Tx, b *booking.Booking) error {
+	if err := upsertBooking(ctx, tx, b); err != nil {
+		return err
+	}
+	if err := upsertOfferSnapshot(ctx, tx, b); err != nil {
+		return err
+	}
+	if err := appendStatusHistory(ctx, tx, b); err != nil {
+		return err
+	}
+	if err := appendOutbox(ctx, tx, b); err != nil {
+		return err
+	}
+	return nil
+}
+
+func appendStatusHistory(ctx context.Context, tx *sql.Tx, b *booking.Booking) error {
+	for _, ev := range b.Events() {
+		oldStatus, newStatus, reason, ok := statusTransitionFromEvent(ev)
+		if !ok {
+			continue
+		}
+		_, err := tx.ExecContext(ctx,
+			`INSERT INTO booking_status_history (booking_id, old_status, new_status, reason, changed_at)
+			 VALUES ($1, $2, $3, $4, $5)`,
+			b.ID(), string(oldStatus), string(newStatus), nullableString(reason), ev.OccurredAt(),
+		)
+		if err != nil {
+			return fmt.Errorf("booking_repo.appendStatusHistory: %w", err)
+		}
+	}
+	return nil
+}
+
+func statusTransitionFromEvent(e booking.Event) (booking.Status, booking.Status, string, bool) {
+	switch ev := e.(type) {
+	case booking.BookingCancelled:
+		return ev.OldStatus, ev.NewStatus, "", true
+	case booking.BookingApproved:
+		return ev.OldStatus, ev.NewStatus, "", true
+	case booking.BookingRejected:
+		return ev.OldStatus, ev.NewStatus, ev.Reason, true
+	default:
+		return "", "", "", false
+	}
+}
+
+func nullableString(s string) any {
+	if s == "" {
+		return nil
+	}
+	return s
+}
+
 func upsertBooking(ctx context.Context, tx *sql.Tx, b *booking.Booking) error {
-	_, err := tx.ExecContext(ctx,
-		`INSERT INTO booking (id, guest_id, status, total_amount, currency, check_in, check_out, created_at, updated_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+	res, err := tx.ExecContext(ctx,
+		`INSERT INTO booking (id, guest_id, status, total_amount, currency, check_in, check_out, version, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		 ON CONFLICT (id) DO UPDATE SET
 			status     = EXCLUDED.status,
-			updated_at = EXCLUDED.updated_at`,
+			updated_at = EXCLUDED.updated_at,
+			version    = EXCLUDED.version
+		 WHERE booking.version = EXCLUDED.version - 1`,
 		b.ID(), b.GuestID(), string(b.Status()),
 		b.Total().Amount(), b.Total().Currency(),
 		b.Stay().CheckIn(), b.Stay().CheckOut(),
-		b.CreatedAt(), b.UpdatedAt(),
+		b.Version(), b.CreatedAt(), b.UpdatedAt(),
 	)
 	if err != nil {
 		return fmt.Errorf("booking_repo.upsertBooking: %w", err)
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("booking_repo.upsertBooking rows affected: %w", err)
+	}
+	if affected == 0 {
+		return fmt.Errorf("%w: booking %s", domain.ErrConcurrentUpdate, b.ID())
 	}
 	return nil
 }
@@ -92,7 +154,7 @@ func appendOutbox(ctx context.Context, tx *sql.Tx, b *booking.Booking) error {
 func (r *BookingRepo) FindByID(ctx context.Context, id string) (*booking.Booking, error) {
 	return r.scanBooking(r.db.QueryRowContext(ctx,
 		`SELECT b.id, b.guest_id, b.status, b.total_amount, b.currency,
-		        b.check_in, b.check_out, b.created_at, b.updated_at,
+		        b.check_in, b.check_out, b.version, b.created_at, b.updated_at,
 		        o.offer_id, o.hotel_id, o.room_type, o.price_per_night, o.currency
 		 FROM booking b
 		 JOIN booking_offer_snapshot o ON o.booking_id = b.id
@@ -101,20 +163,11 @@ func (r *BookingRepo) FindByID(ctx context.Context, id string) (*booking.Booking
 	))
 }
 
-func (r *BookingRepo) ListByGuestID(ctx context.Context, guestID string, limit, offset int) ([]*booking.Booking, error) {
-	rows, err := r.db.QueryContext(ctx,
-		`SELECT b.id, b.guest_id, b.status, b.total_amount, b.currency,
-		        b.check_in, b.check_out, b.created_at, b.updated_at,
-		        o.offer_id, o.hotel_id, o.room_type, o.price_per_night, o.currency
-		 FROM booking b
-		 JOIN booking_offer_snapshot o ON o.booking_id = b.id
-		 WHERE b.guest_id = $1
-		 ORDER BY b.created_at DESC
-		 LIMIT $2 OFFSET $3`,
-		guestID, limit, offset,
-	)
+func (r *BookingRepo) List(ctx context.Context, filter booking.ListFilter) ([]*booking.Booking, error) {
+	query, args := buildListQuery(filter)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("booking_repo.ListByGuestID: %w", err)
+		return nil, fmt.Errorf("booking_repo.List: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 
@@ -129,10 +182,99 @@ func (r *BookingRepo) ListByGuestID(ctx context.Context, guestID string, limit, 
 	return result, rows.Err()
 }
 
+func buildListQuery(f booking.ListFilter) (string, []any) {
+	var (
+		conds []string
+		args  []any
+	)
+
+	add := func(cond string, val any) {
+		args = append(args, val)
+		conds = append(conds, fmt.Sprintf(cond, len(args)))
+	}
+
+	if f.GuestID != "" {
+		add("b.guest_id = $%d", f.GuestID)
+	}
+	if f.Status != nil {
+		add("b.status = $%d", string(*f.Status))
+	}
+	if f.CheckInFrom != nil {
+		add("b.check_in >= $%d", *f.CheckInFrom)
+	}
+	if f.CheckInTo != nil {
+		add("b.check_in <= $%d", *f.CheckInTo)
+	}
+
+	where := ""
+	if len(conds) > 0 {
+		where = "WHERE " + strings.Join(conds, " AND ")
+	}
+
+	limit := f.Limit
+	if limit <= 0 {
+		limit = 20
+	}
+	args = append(args, limit)
+	limitIdx := len(args)
+	args = append(args, f.Offset)
+	offsetIdx := len(args)
+
+	q := fmt.Sprintf(
+		`SELECT b.id, b.guest_id, b.status, b.total_amount, b.currency,
+		        b.check_in, b.check_out, b.version, b.created_at, b.updated_at,
+		        o.offer_id, o.hotel_id, o.room_type, o.price_per_night, o.currency
+		 FROM booking b
+		 JOIN booking_offer_snapshot o ON o.booking_id = b.id
+		 %s
+		 ORDER BY b.created_at DESC
+		 LIMIT $%d OFFSET $%d`,
+		where, limitIdx, offsetIdx,
+	)
+	return q, args
+}
+
+func (r *BookingRepo) GetStatusHistory(ctx context.Context, bookingID string) ([]booking.StatusHistoryEntry, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT old_status, new_status, reason, changed_at
+		 FROM booking_status_history
+		 WHERE booking_id = $1
+		 ORDER BY changed_at ASC, id ASC`,
+		bookingID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("booking_repo.GetStatusHistory: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var result []booking.StatusHistoryEntry
+	for rows.Next() {
+		var (
+			oldStatus, newStatus string
+			reason               sql.NullString
+			changedAt            time.Time
+		)
+		if err := rows.Scan(&oldStatus, &newStatus, &reason, &changedAt); err != nil {
+			return nil, fmt.Errorf("booking_repo.GetStatusHistory scan: %w", err)
+		}
+		entry := booking.StatusHistoryEntry{
+			OldStatus: booking.Status(oldStatus),
+			NewStatus: booking.Status(newStatus),
+			ChangedAt: changedAt,
+		}
+		if reason.Valid {
+			entry.Reason = reason.String
+		}
+		result = append(result, entry)
+	}
+	return result, rows.Err()
+}
+
 func (r *BookingRepo) scanBooking(row *sql.Row) (*booking.Booking, error) {
 	var (
 		id, guestID, status, currency           string
 		totalAmount                             int64
+		version                                 int
 		checkIn, checkOut, createdAt, updatedAt time.Time
 		offerID, hotelID, roomType, offerCur    string
 		pricePerNight                           int64
@@ -140,7 +282,7 @@ func (r *BookingRepo) scanBooking(row *sql.Row) (*booking.Booking, error) {
 
 	err := row.Scan(
 		&id, &guestID, &status, &totalAmount, &currency,
-		&checkIn, &checkOut, &createdAt, &updatedAt,
+		&checkIn, &checkOut, &version, &createdAt, &updatedAt,
 		&offerID, &hotelID, &roomType, &pricePerNight, &offerCur,
 	)
 	if err != nil {
@@ -152,7 +294,7 @@ func (r *BookingRepo) scanBooking(row *sql.Row) (*booking.Booking, error) {
 
 	return reconstructBooking(
 		id, guestID, status, totalAmount, currency,
-		checkIn, checkOut, createdAt, updatedAt,
+		checkIn, checkOut, version, createdAt, updatedAt,
 		offerID, hotelID, roomType, pricePerNight, offerCur,
 	)
 }
@@ -161,6 +303,7 @@ func (r *BookingRepo) scanBookingFromRows(rows *sql.Rows) (*booking.Booking, err
 	var (
 		id, guestID, status, currency           string
 		totalAmount                             int64
+		version                                 int
 		checkIn, checkOut, createdAt, updatedAt time.Time
 		offerID, hotelID, roomType, offerCur    string
 		pricePerNight                           int64
@@ -168,7 +311,7 @@ func (r *BookingRepo) scanBookingFromRows(rows *sql.Rows) (*booking.Booking, err
 
 	err := rows.Scan(
 		&id, &guestID, &status, &totalAmount, &currency,
-		&checkIn, &checkOut, &createdAt, &updatedAt,
+		&checkIn, &checkOut, &version, &createdAt, &updatedAt,
 		&offerID, &hotelID, &roomType, &pricePerNight, &offerCur,
 	)
 	if err != nil {
@@ -177,14 +320,14 @@ func (r *BookingRepo) scanBookingFromRows(rows *sql.Rows) (*booking.Booking, err
 
 	return reconstructBooking(
 		id, guestID, status, totalAmount, currency,
-		checkIn, checkOut, createdAt, updatedAt,
+		checkIn, checkOut, version, createdAt, updatedAt,
 		offerID, hotelID, roomType, pricePerNight, offerCur,
 	)
 }
 
 func reconstructBooking(
 	id, guestID, status string, totalAmount int64, currency string,
-	checkIn, checkOut, createdAt, updatedAt time.Time,
+	checkIn, checkOut time.Time, version int, createdAt, updatedAt time.Time,
 	offerID, hotelID, roomType string, pricePerNight int64, offerCur string,
 ) (*booking.Booking, error) {
 	price, err := booking.NewMoney(pricePerNight, offerCur)
@@ -206,6 +349,6 @@ func reconstructBooking(
 
 	return booking.Reconstruct(
 		id, guestID, offer, stay, total,
-		booking.Status(status), createdAt, updatedAt,
+		booking.Status(status), version, createdAt, updatedAt,
 	), nil
 }

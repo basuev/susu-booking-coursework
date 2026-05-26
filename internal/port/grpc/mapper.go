@@ -111,11 +111,24 @@ var statusToProtoMap = map[booking.Status]pb.BookingStatus{
 	booking.StatusCancelled: pb.BookingStatus_BOOKING_STATUS_CANCELLED,
 }
 
+var statusFromProtoMap = map[pb.BookingStatus]booking.Status{
+	pb.BookingStatus_BOOKING_STATUS_PENDING:   booking.StatusPending,
+	pb.BookingStatus_BOOKING_STATUS_CONFIRMED: booking.StatusConfirmed,
+	pb.BookingStatus_BOOKING_STATUS_APPROVED:  booking.StatusApproved,
+	pb.BookingStatus_BOOKING_STATUS_REJECTED:  booking.StatusRejected,
+	pb.BookingStatus_BOOKING_STATUS_CANCELLED: booking.StatusCancelled,
+}
+
 func statusToProto(s booking.Status) pb.BookingStatus {
 	if v, ok := statusToProtoMap[s]; ok {
 		return v
 	}
 	return pb.BookingStatus_BOOKING_STATUS_UNSPECIFIED
+}
+
+func statusFilterFromProto(s pb.BookingStatus) (booking.Status, bool) {
+	v, ok := statusFromProtoMap[s]
+	return v, ok
 }
 
 func bookingToProto(b *booking.Booking) *pb.Booking {
@@ -129,6 +142,15 @@ func bookingToProto(b *booking.Booking) *pb.Booking {
 		Status:     statusToProto(b.Status()),
 		CreatedAt:  timestamppb.New(b.CreatedAt()),
 		UpdatedAt:  timestamppb.New(b.UpdatedAt()),
+	}
+}
+
+func statusHistoryToProto(e booking.StatusHistoryEntry) *pb.StatusHistoryEntry {
+	return &pb.StatusHistoryEntry{
+		OldStatus: statusToProto(e.OldStatus),
+		NewStatus: statusToProto(e.NewStatus),
+		Reason:    e.Reason,
+		ChangedAt: timestamppb.New(e.ChangedAt),
 	}
 }
 
@@ -156,6 +178,8 @@ func mapDomainError(err error) error {
 		return status.Error(codes.InvalidArgument, err.Error())
 	case errors.Is(err, domain.ErrInvalidTransition):
 		return status.Error(codes.FailedPrecondition, err.Error())
+	case errors.Is(err, domain.ErrConcurrentUpdate):
+		return status.Error(codes.Aborted, err.Error())
 	default:
 		return status.Error(codes.Internal, err.Error())
 	}

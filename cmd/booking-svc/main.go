@@ -51,10 +51,12 @@ func main() {
 	defer natsClient.Close()
 
 	repo := postgres.NewBookingRepo(db)
+	idempotencyRepo := postgres.NewIdempotencyRepo(db)
+	txManager := postgres.NewTxManager(db)
 	outboxRepo := outbox.NewRepo(db)
 	outboxWorker := outbox.NewWorker(outboxRepo, natsClient)
 
-	createHandler := command.NewCreateBookingHandler(repo)
+	createHandler := command.NewCreateBookingHandler(repo, idempotencyRepo, txManager)
 	cancelHandler := command.NewCancelBookingHandler(repo)
 	approveHandler := command.NewApproveBookingHandler(repo)
 	rejectHandler := command.NewRejectBookingHandler(repo)

@@ -22,6 +22,8 @@ func (e BookingCreated) OccurredAt() time.Time { return e.Timestamp }
 
 type BookingCancelled struct {
 	BookingID string
+	OldStatus Status
+	NewStatus Status
 	Timestamp time.Time
 }
 
@@ -30,6 +32,8 @@ func (e BookingCancelled) OccurredAt() time.Time { return e.Timestamp }
 
 type BookingApproved struct {
 	BookingID string
+	OldStatus Status
+	NewStatus Status
 	Timestamp time.Time
 }
 
@@ -38,6 +42,8 @@ func (e BookingApproved) OccurredAt() time.Time { return e.Timestamp }
 
 type BookingRejected struct {
 	BookingID string
+	OldStatus Status
+	NewStatus Status
 	Reason    string
 	Timestamp time.Time
 }

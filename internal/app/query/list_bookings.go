@@ -2,14 +2,18 @@ package query
 
 import (
 	"context"
+	"time"
 
 	"github.com/basuev/susu-booking-coursework/internal/domain/booking"
 )
 
 type ListBookings struct {
-	GuestID  string
-	PageSize int
-	Offset   int
+	GuestID     string
+	Status      *booking.Status
+	CheckInFrom *time.Time
+	CheckInTo   *time.Time
+	PageSize    int
+	Offset      int
 }
 
 type ListBookingsHandler struct {
@@ -21,5 +25,12 @@ func NewListBookingsHandler(repo booking.Repository) *ListBookingsHandler {
 }
 
 func (h *ListBookingsHandler) Handle(ctx context.Context, q ListBookings) ([]*booking.Booking, error) {
-	return h.repo.ListByGuestID(ctx, q.GuestID, q.PageSize, q.Offset)
+	return h.repo.List(ctx, booking.ListFilter{
+		GuestID:     q.GuestID,
+		Status:      q.Status,
+		CheckInFrom: q.CheckInFrom,
+		CheckInTo:   q.CheckInTo,
+		Limit:       q.PageSize,
+		Offset:      q.Offset,
+	})
 }

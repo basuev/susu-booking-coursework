@@ -66,12 +66,23 @@ message GetBookingRequest {
 
 message GetBookingResponse {
   Booking booking = 1;
+  repeated StatusHistoryEntry history = 2;
+}
+
+message StatusHistoryEntry {
+  BookingStatus old_status = 1;
+  BookingStatus new_status = 2;
+  string reason = 3;
+  google.protobuf.Timestamp changed_at = 4;
 }
 
 message ListBookingsRequest {
   string guest_id = 1;
-  int32 page_size = 2;
-  string page_token = 3;
+  BookingStatus status_filter = 2;
+  google.protobuf.Timestamp check_in_from = 3;
+  google.protobuf.Timestamp check_in_to = 4;
+  int32 page_size = 5;
+  string page_token = 6;
 }
 
 message ListBookingsResponse {

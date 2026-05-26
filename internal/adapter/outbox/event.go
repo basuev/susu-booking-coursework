@@ -31,16 +31,22 @@ type bookingCreatedPayload struct {
 
 type bookingCancelledPayload struct {
 	BookingID string    `json:"booking_id"`
+	OldStatus string    `json:"old_status"`
+	NewStatus string    `json:"new_status"`
 	Timestamp time.Time `json:"timestamp"`
 }
 
 type bookingApprovedPayload struct {
 	BookingID string    `json:"booking_id"`
+	OldStatus string    `json:"old_status"`
+	NewStatus string    `json:"new_status"`
 	Timestamp time.Time `json:"timestamp"`
 }
 
 type bookingRejectedPayload struct {
 	BookingID string    `json:"booking_id"`
+	OldStatus string    `json:"old_status"`
+	NewStatus string    `json:"new_status"`
 	Reason    string    `json:"reason"`
 	Timestamp time.Time `json:"timestamp"`
 }
@@ -64,6 +70,8 @@ func FromDomainEvent(e booking.Event) (Message, error) {
 	case booking.BookingCancelled:
 		payload, err := json.Marshal(bookingCancelledPayload{
 			BookingID: ev.BookingID,
+			OldStatus: string(ev.OldStatus),
+			NewStatus: string(ev.NewStatus),
 			Timestamp: ev.Timestamp,
 		})
 		if err != nil {
@@ -73,6 +81,8 @@ func FromDomainEvent(e booking.Event) (Message, error) {
 	case booking.BookingApproved:
 		payload, err := json.Marshal(bookingApprovedPayload{
 			BookingID: ev.BookingID,
+			OldStatus: string(ev.OldStatus),
+			NewStatus: string(ev.NewStatus),
 			Timestamp: ev.Timestamp,
 		})
 		if err != nil {
@@ -82,6 +92,8 @@ func FromDomainEvent(e booking.Event) (Message, error) {
 	case booking.BookingRejected:
 		payload, err := json.Marshal(bookingRejectedPayload{
 			BookingID: ev.BookingID,
+			OldStatus: string(ev.OldStatus),
+			NewStatus: string(ev.NewStatus),
 			Reason:    ev.Reason,
 			Timestamp: ev.Timestamp,
 		})

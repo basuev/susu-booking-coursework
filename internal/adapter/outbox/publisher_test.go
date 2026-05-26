@@ -12,22 +12,34 @@ type fakeStore struct {
 	mu         sync.Mutex
 	pending    []PendingRow
 	published  []string
+	failed     []failedRecord
+	recovered  int64
 	pendingErr error
 }
 
-func (f *fakeStore) SelectPending(_ context.Context, limit int) ([]PendingRow, error) {
+type failedRecord struct {
+	ID          string
+	Err         string
+	MaxAttempts int
+}
+
+func (f *fakeStore) ClaimPending(_ context.Context, limit int) ([]PendingRow, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if f.pendingErr != nil {
 		return nil, f.pendingErr
 	}
-	if len(f.pending) <= limit {
-		out := f.pending
-		f.pending = nil
-		return out, nil
+	n := limit
+	if n > len(f.pending) {
+		n = len(f.pending)
 	}
-	out := f.pending[:limit]
-	f.pending = f.pending[limit:]
+	out := make([]PendingRow, n)
+	for i := 0; i < n; i++ {
+		row := f.pending[i]
+		row.AttemptCount++
+		out[i] = row
+	}
+	f.pending = f.pending[n:]
 	return out, nil
 }
 
@@ -36,6 +48,19 @@ func (f *fakeStore) MarkPublished(_ context.Context, id string) error {
 	defer f.mu.Unlock()
 	f.published = append(f.published, id)
 	return nil
+}
+
+func (f *fakeStore) MarkFailed(_ context.Context, id string, publishErr error, maxAttempts int) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.failed = append(f.failed, failedRecord{ID: id, Err: publishErr.Error(), MaxAttempts: maxAttempts})
+	return nil
+}
+
+func (f *fakeStore) RecoverStuck(_ context.Context, _ time.Duration) (int64, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.recovered, nil
 }
 
 type fakePublisher struct {
@@ -76,9 +101,12 @@ func TestWorker_drain_PublishesAllAndMarks(t *testing.T) {
 	if len(store.published) != 2 || store.published[0] != "1" || store.published[1] != "2" {
 		t.Fatalf("marked ids: want [1 2], got %v", store.published)
 	}
+	if len(store.failed) != 0 {
+		t.Fatalf("expected no failures, got %v", store.failed)
+	}
 }
 
-func TestWorker_drain_FailureDoesNotMark(t *testing.T) {
+func TestWorker_drain_FailureCallsMarkFailed(t *testing.T) {
 	t.Parallel()
 
 	store := &fakeStore{
@@ -89,13 +117,19 @@ func TestWorker_drain_FailureDoesNotMark(t *testing.T) {
 	}
 	publisher := &fakePublisher{failOn: map[string]bool{"booking.created": true}}
 
-	w := NewWorker(store, publisher)
+	w := NewWorker(store, publisher, WithMaxAttempts(7))
 	if err := w.drain(context.Background()); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	if len(store.published) != 1 || store.published[0] != "2" {
-		t.Fatalf("only successful publish should be marked, got %v", store.published)
+		t.Fatalf("only successful publish must be marked published, got %v", store.published)
+	}
+	if len(store.failed) != 1 || store.failed[0].ID != "1" {
+		t.Fatalf("expected one MarkFailed call for id=1, got %v", store.failed)
+	}
+	if store.failed[0].MaxAttempts != 7 {
+		t.Fatalf("MarkFailed must receive configured max attempts: want 7, got %d", store.failed[0].MaxAttempts)
 	}
 }
 
@@ -104,7 +138,10 @@ func TestWorker_Run_RespectsContextCancel(t *testing.T) {
 
 	store := &fakeStore{}
 	publisher := &fakePublisher{}
-	w := NewWorker(store, publisher, WithInterval(10*time.Millisecond))
+	w := NewWorker(store, publisher,
+		WithInterval(10*time.Millisecond),
+		WithRecoverInterval(10*time.Millisecond),
+	)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Millisecond)
 	defer cancel()
