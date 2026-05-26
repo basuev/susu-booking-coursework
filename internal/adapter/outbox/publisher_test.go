@@ -9,11 +9,10 @@ import (
 )
 
 type fakeStore struct {
-	mu          sync.Mutex
-	pending     []PendingRow
-	published   []string
-	pendingErr  error
-	publishCall int
+	mu         sync.Mutex
+	pending    []PendingRow
+	published  []string
+	pendingErr error
 }
 
 func (f *fakeStore) SelectPending(_ context.Context, limit int) ([]PendingRow, error) {

@@ -128,11 +128,11 @@ func (b *Booking) ClearEvents() {
 	b.events = nil
 }
 
-func (b *Booking) ID() string             { return b.id }
-func (b *Booking) GuestID() string        { return b.guestID }
-func (b *Booking) Offer() OfferSnapshot   { return b.offer }
-func (b *Booking) Stay() StayPeriod       { return b.stay }
-func (b *Booking) Total() Money           { return b.total }
-func (b *Booking) Status() Status         { return b.status }
-func (b *Booking) CreatedAt() time.Time   { return b.createdAt }
-func (b *Booking) UpdatedAt() time.Time   { return b.updatedAt }
+func (b *Booking) ID() string           { return b.id }
+func (b *Booking) GuestID() string      { return b.guestID }
+func (b *Booking) Offer() OfferSnapshot { return b.offer }
+func (b *Booking) Stay() StayPeriod     { return b.stay }
+func (b *Booking) Total() Money         { return b.total }
+func (b *Booking) Status() Status       { return b.status }
+func (b *Booking) CreatedAt() time.Time { return b.createdAt }
+func (b *Booking) UpdatedAt() time.Time { return b.updatedAt }

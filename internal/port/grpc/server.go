@@ -32,7 +32,17 @@ func (s *Server) Start() error {
 	return s.gs.Serve(s.listener)
 }
 
-func (s *Server) Shutdown(_ context.Context) {
+func (s *Server) Shutdown(ctx context.Context) {
 	slog.Info("gRPC server shutting down")
-	s.gs.GracefulStop()
+	done := make(chan struct{})
+	go func() {
+		s.gs.GracefulStop()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-ctx.Done():
+		slog.Warn("gRPC graceful stop deadline exceeded, forcing stop")
+		s.gs.Stop()
+	}
 }

@@ -61,7 +61,7 @@ func (r *ProjectionRepo) FindByGuestID(ctx context.Context, guestID string, limi
 	if err != nil {
 		return nil, fmt.Errorf("projection_repo.FindByGuestID: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var result []BookingProjection
 	for rows.Next() {

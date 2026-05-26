@@ -21,9 +21,5 @@ func NewListBookingsHandler(repo booking.Repository) *ListBookingsHandler {
 }
 
 func (h *ListBookingsHandler) Handle(ctx context.Context, q ListBookings) ([]*booking.Booking, error) {
-	pageSize := q.PageSize
-	if pageSize <= 0 || pageSize > 100 {
-		pageSize = 20
-	}
-	return h.repo.ListByGuestID(ctx, q.GuestID, pageSize, q.Offset)
+	return h.repo.ListByGuestID(ctx, q.GuestID, q.PageSize, q.Offset)
 }
