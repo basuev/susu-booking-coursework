@@ -49,9 +49,15 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
 
       - name: Run tests
-        run: go test -race -coverprofile=coverage.out ./...
+        run: go test -race -coverpkg=./internal/...,./pkg/... -coverprofile=coverage.out ./...
         env:
           DATABASE_URL: postgres://booking:booking@postgres:5432/booking_test?sslmode=disable
+
+      - name: Coverage gate
+        run: |
+          total=$(go tool cover -func=coverage.out | awk '/^total:/ {gsub("%","",$3); print $3}')
+          echo "total coverage: $total%"
+          awk -v t="$total" 'BEGIN { if (t+0 < 60.0) { exit 1 } }'
 
   build:
     name: Build
