@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -164,6 +165,58 @@ func TestMoneyToProto(t *testing.T) {
 	got := moneyToProto(m)
 	if got.GetAmount() != "199.99" || got.GetCurrency() != "RUB" {
 		t.Fatalf("got %+v, want amount=199.99 currency=RUB", got)
+	}
+}
+
+func TestOfferFromProto(t *testing.T) {
+	t.Parallel()
+
+	if _, err := offerFromProto(nil); !errors.Is(err, domain.ErrInvalidArgument) {
+		t.Fatalf("nil offer: want ErrInvalidArgument, got %v", err)
+	}
+
+	if _, err := offerFromProto(&pb.OfferSnapshot{
+		PricePerNight: &pb.Money{Amount: "bad", Currency: "RUB"},
+	}); err == nil {
+		t.Fatalf("bad price: expected error")
+	}
+
+	o, err := offerFromProto(&pb.OfferSnapshot{
+		OfferId: "o1", HotelId: "h1", RoomType: "STD",
+		PricePerNight: &pb.Money{Amount: "10.00", Currency: "RUB"},
+	})
+	if err != nil {
+		t.Fatalf("good offer: %v", err)
+	}
+	if o.OfferID() != "o1" {
+		t.Fatalf("offer id mismatch")
+	}
+}
+
+func TestBookingToProto_StableShape(t *testing.T) {
+	t.Parallel()
+	price, _ := booking.NewMoney(10000, "RUB")
+	offer, _ := booking.NewOfferSnapshot("o", "h", "STD", price)
+	in := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	out := time.Date(2026, 6, 2, 0, 0, 0, 0, time.UTC)
+	stay, _ := booking.NewStayPeriod(in, out)
+	total, _ := booking.NewMoney(10000, "RUB")
+	now := time.Now()
+	b := booking.Reconstruct("id-x", "guest", offer, stay, total, booking.StatusPending, 1, now, now)
+
+	got := bookingToProto(b)
+	if got.GetId() != "id-x" {
+		t.Fatalf("id")
+	}
+	sum := bookingToSummary(b)
+	if sum.GetId() != "id-x" {
+		t.Fatalf("summary id")
+	}
+	entry := statusHistoryToProto(booking.StatusHistoryEntry{
+		OldStatus: booking.StatusPending, NewStatus: booking.StatusApproved, ChangedAt: time.Now(),
+	})
+	if entry.GetNewStatus() != pb.BookingStatus_BOOKING_STATUS_APPROVED {
+		t.Fatalf("entry status")
 	}
 }
 

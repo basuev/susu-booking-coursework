@@ -133,6 +133,81 @@ func TestWorker_drain_FailureCallsMarkFailed(t *testing.T) {
 	}
 }
 
+func TestNewRepo_Construct(t *testing.T) {
+	t.Parallel()
+	if NewRepo(nil) == nil {
+		t.Fatalf("NewRepo returned nil")
+	}
+}
+
+func TestWorker_Options(t *testing.T) {
+	t.Parallel()
+	w := NewWorker(&fakeStore{}, &fakePublisher{},
+		WithBatchSize(7),
+		WithInterval(50*time.Millisecond),
+		WithMaxAttempts(9),
+		WithStuckThreshold(2*time.Minute),
+		WithRecoverInterval(3*time.Second),
+		WithBatchSize(0),
+		WithInterval(0),
+		WithMaxAttempts(0),
+		WithStuckThreshold(0),
+		WithRecoverInterval(0),
+	)
+	if w.batchSize != 7 {
+		t.Errorf("batchSize: want 7, got %d", w.batchSize)
+	}
+	if w.interval != 50*time.Millisecond {
+		t.Errorf("interval not set")
+	}
+	if w.maxAttempts != 9 {
+		t.Errorf("maxAttempts: want 9, got %d", w.maxAttempts)
+	}
+	if w.stuckThreshold != 2*time.Minute {
+		t.Errorf("stuckThreshold not set")
+	}
+	if w.recoverInterval != 3*time.Second {
+		t.Errorf("recoverInterval not set")
+	}
+}
+
+func TestWorker_drain_ClaimErrorPropagates(t *testing.T) {
+	t.Parallel()
+	store := &fakeStore{pendingErr: errors.New("db boom")}
+	w := NewWorker(store, &fakePublisher{})
+	err := w.drain(context.Background())
+	if err == nil {
+		t.Fatalf("expected error")
+	}
+}
+
+func TestWorker_Run_DrainsAndRecovers(t *testing.T) {
+	t.Parallel()
+	store := &fakeStore{
+		pending: []PendingRow{
+			{ID: "1", Topic: "booking.created", Key: "b-1", Payload: []byte("{}")},
+		},
+		recovered: 3,
+	}
+	publisher := &fakePublisher{}
+	w := NewWorker(store, publisher,
+		WithInterval(5*time.Millisecond),
+		WithRecoverInterval(5*time.Millisecond),
+		WithStuckThreshold(time.Minute),
+	)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	err := w.Run(ctx)
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("want DeadlineExceeded, got %v", err)
+	}
+	if len(publisher.published) == 0 {
+		t.Fatalf("expected at least one publish")
+	}
+}
+
 func TestWorker_Run_RespectsContextCancel(t *testing.T) {
 	t.Parallel()
 
