@@ -21,6 +21,15 @@ type BookingProjection struct {
 	UpdatedAt   time.Time
 }
 
+type ProjectionListFilter struct {
+	GuestID     string
+	Status      string
+	CheckInFrom *time.Time
+	CheckInTo   *time.Time
+	Limit       int
+	Offset      int
+}
+
 type ProjectionRepo struct {
 	db *sql.DB
 }
@@ -48,18 +57,47 @@ func (r *ProjectionRepo) Upsert(ctx context.Context, p BookingProjection) error 
 	return nil
 }
 
-func (r *ProjectionRepo) FindByGuestID(ctx context.Context, guestID string, limit, offset int) ([]BookingProjection, error) {
+func (r *ProjectionRepo) UpdateStatus(ctx context.Context, id, newStatus string, updatedAt time.Time) error {
 	query := `
-		SELECT id, guest_id, hotel_id, room_type, check_in, check_out,
-		       total_amount, currency, status, created_at, updated_at
-		FROM booking_projection
-		WHERE guest_id = $1
-		ORDER BY updated_at DESC
-		LIMIT $2 OFFSET $3`
-
-	rows, err := r.db.QueryContext(ctx, query, guestID, limit, offset)
+		UPDATE booking_projection
+		   SET status     = $2,
+		       updated_at = $3
+		 WHERE id         = $1`
+	_, err := r.db.ExecContext(ctx, query, id, newStatus, updatedAt)
 	if err != nil {
-		return nil, fmt.Errorf("projection_repo.FindByGuestID: %w", err)
+		return fmt.Errorf("projection_repo.UpdateStatus: %w", err)
+	}
+	return nil
+}
+
+func (r *ProjectionRepo) ListByGuest(ctx context.Context, f ProjectionListFilter) ([]BookingProjection, error) {
+	q := `SELECT id, guest_id, hotel_id, room_type, check_in, check_out,
+	             total_amount, currency, status, created_at, updated_at
+	      FROM booking_projection
+	      WHERE guest_id = $1`
+	args := []any{f.GuestID}
+	idx := 2
+	if f.Status != "" {
+		q += fmt.Sprintf(" AND status = $%d", idx)
+		args = append(args, f.Status)
+		idx++
+	}
+	if f.CheckInFrom != nil {
+		q += fmt.Sprintf(" AND check_in >= $%d", idx)
+		args = append(args, *f.CheckInFrom)
+		idx++
+	}
+	if f.CheckInTo != nil {
+		q += fmt.Sprintf(" AND check_in <= $%d", idx)
+		args = append(args, *f.CheckInTo)
+		idx++
+	}
+	q += fmt.Sprintf(" ORDER BY updated_at DESC LIMIT $%d OFFSET $%d", idx, idx+1)
+	args = append(args, f.Limit, f.Offset)
+
+	rows, err := r.db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, fmt.Errorf("projection_repo.ListByGuest: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 
