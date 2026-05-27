@@ -35,8 +35,6 @@ jobs:
           POSTGRES_DB: booking_test
           POSTGRES_USER: booking
           POSTGRES_PASSWORD: booking
-        ports:
-          - 5432:5432
         options: >-
           --health-cmd "pg_isready -U booking"
           --health-interval 5s
@@ -53,7 +51,7 @@ jobs:
       - name: Run tests
         run: go test -race -coverprofile=coverage.out ./...
         env:
-          DATABASE_URL: postgres://booking:booking@localhost:5432/booking_test?sslmode=disable
+          DATABASE_URL: postgres://booking:booking@postgres:5432/booking_test?sslmode=disable
 
   build:
     name: Build
@@ -74,9 +72,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: bufbuild/buf-action@v1
-        with:
-          lint: true
+      - name: Install buf
+        run: |
+          curl -sSL -o /usr/local/bin/buf \
+            https://github.com/bufbuild/buf/releases/download/v1.50.0/buf-Linux-x86_64
+          chmod +x /usr/local/bin/buf
+          buf --version
+
+      - name: Lint protos
+        run: buf lint
 
   docker:
     name: Docker build
@@ -98,8 +102,6 @@ jobs:
           POSTGRES_DB: booking_migrate
           POSTGRES_USER: booking
           POSTGRES_PASSWORD: booking
-        ports:
-          - 5432:5432
         options: >-
           --health-cmd "pg_isready -U booking"
           --health-interval 5s
@@ -115,7 +117,7 @@ jobs:
           sudo mv migrate /usr/local/bin/
 
       - name: Migrate up
-        run: migrate -path migrations -database "postgres://booking:booking@localhost:5432/booking_migrate?sslmode=disable" up
+        run: migrate -path migrations -database "postgres://booking:booking@postgres:5432/booking_migrate?sslmode=disable" up
 
       - name: Migrate down
-        run: migrate -path migrations -database "postgres://booking:booking@localhost:5432/booking_migrate?sslmode=disable" down -all
+        run: migrate -path migrations -database "postgres://booking:booking@postgres:5432/booking_migrate?sslmode=disable" down -all
