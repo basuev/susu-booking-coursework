@@ -66,6 +66,24 @@ func (c *Client) Publish(ctx context.Context, subject string, payload []byte) er
 	return nil
 }
 
+func (c *Client) Consume(ctx context.Context, durable, filterSubject string, handler func(jetstream.Msg)) (jetstream.ConsumeContext, error) {
+	cons, err := c.js.CreateOrUpdateConsumer(ctx, BookingStreamName, jetstream.ConsumerConfig{
+		Durable:       durable,
+		AckPolicy:     jetstream.AckExplicitPolicy,
+		FilterSubject: filterSubject,
+		DeliverPolicy: jetstream.DeliverAllPolicy,
+		MaxAckPending: 256,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create consumer %q: %w", durable, err)
+	}
+	cc, err := cons.Consume(handler)
+	if err != nil {
+		return nil, fmt.Errorf("start consume %q: %w", durable, err)
+	}
+	return cc, nil
+}
+
 func (c *Client) Close() {
 	if c.conn != nil {
 		c.conn.Close()
