@@ -5,6 +5,9 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
+
+	"gitverse.ru/basuev/susu-booking-coursework/internal/app/query"
+	"gitverse.ru/basuev/susu-booking-coursework/internal/domain/booking"
 )
 
 type BookingProjection struct {
@@ -19,15 +22,6 @@ type BookingProjection struct {
 	Status      string
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
-}
-
-type ProjectionListFilter struct {
-	GuestID     string
-	Status      string
-	CheckInFrom *time.Time
-	CheckInTo   *time.Time
-	Limit       int
-	Offset      int
 }
 
 type ProjectionRepo struct {
@@ -70,16 +64,16 @@ func (r *ProjectionRepo) UpdateStatus(ctx context.Context, id, newStatus string,
 	return nil
 }
 
-func (r *ProjectionRepo) ListByGuest(ctx context.Context, f ProjectionListFilter) ([]BookingProjection, error) {
+func (r *ProjectionRepo) ListByGuest(ctx context.Context, f query.ProjectionFilter) ([]query.ProjectionItem, error) {
 	q := `SELECT id, guest_id, hotel_id, room_type, check_in, check_out,
 	             total_amount, currency, status, created_at, updated_at
 	      FROM booking_projection
 	      WHERE guest_id = $1`
 	args := []any{f.GuestID}
 	idx := 2
-	if f.Status != "" {
+	if f.Status != nil {
 		q += fmt.Sprintf(" AND status = $%d", idx)
-		args = append(args, f.Status)
+		args = append(args, string(*f.Status))
 		idx++
 	}
 	if f.CheckInFrom != nil {
@@ -101,7 +95,7 @@ func (r *ProjectionRepo) ListByGuest(ctx context.Context, f ProjectionListFilter
 	}
 	defer func() { _ = rows.Close() }()
 
-	var result []BookingProjection
+	var result []query.ProjectionItem
 	for rows.Next() {
 		var p BookingProjection
 		if err := rows.Scan(
@@ -111,7 +105,19 @@ func (r *ProjectionRepo) ListByGuest(ctx context.Context, f ProjectionListFilter
 		); err != nil {
 			return nil, fmt.Errorf("projection_repo.scan: %w", err)
 		}
-		result = append(result, p)
+		result = append(result, query.ProjectionItem{
+			ID:         p.ID,
+			GuestID:    p.GuestID,
+			HotelID:    p.HotelID,
+			RoomType:   p.RoomType,
+			CheckIn:    p.CheckIn,
+			CheckOut:   p.CheckOut,
+			TotalMinor: p.TotalAmount,
+			Currency:   p.Currency,
+			Status:     booking.Status(p.Status),
+			CreatedAt:  p.CreatedAt,
+			UpdatedAt:  p.UpdatedAt,
+		})
 	}
 	return result, rows.Err()
 }

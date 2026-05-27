@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"gitverse.ru/basuev/susu-booking-coursework/internal/adapter/outbox"
@@ -161,77 +160,6 @@ func (r *BookingRepo) FindByID(ctx context.Context, id string) (*booking.Booking
 		 WHERE b.id = $1`,
 		id,
 	))
-}
-
-func (r *BookingRepo) List(ctx context.Context, filter booking.ListFilter) ([]*booking.Booking, error) {
-	query, args := buildListQuery(filter)
-	rows, err := r.db.QueryContext(ctx, query, args...)
-	if err != nil {
-		return nil, fmt.Errorf("booking_repo.List: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-
-	var result []*booking.Booking
-	for rows.Next() {
-		b, err := r.scanBookingFromRows(rows)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, b)
-	}
-	return result, rows.Err()
-}
-
-func buildListQuery(f booking.ListFilter) (string, []any) {
-	var (
-		conds []string
-		args  []any
-	)
-
-	add := func(cond string, val any) {
-		args = append(args, val)
-		conds = append(conds, fmt.Sprintf(cond, len(args)))
-	}
-
-	if f.GuestID != "" {
-		add("b.guest_id = $%d", f.GuestID)
-	}
-	if f.Status != nil {
-		add("b.status = $%d", string(*f.Status))
-	}
-	if f.CheckInFrom != nil {
-		add("b.check_in >= $%d", *f.CheckInFrom)
-	}
-	if f.CheckInTo != nil {
-		add("b.check_in <= $%d", *f.CheckInTo)
-	}
-
-	where := ""
-	if len(conds) > 0 {
-		where = "WHERE " + strings.Join(conds, " AND ")
-	}
-
-	limit := f.Limit
-	if limit <= 0 {
-		limit = 20
-	}
-	args = append(args, limit)
-	limitIdx := len(args)
-	args = append(args, f.Offset)
-	offsetIdx := len(args)
-
-	q := fmt.Sprintf(
-		`SELECT b.id, b.guest_id, b.status, b.total_amount, b.currency,
-		        b.check_in, b.check_out, b.version, b.created_at, b.updated_at,
-		        o.offer_id, o.hotel_id, o.room_type, o.price_per_night, o.currency
-		 FROM booking b
-		 JOIN booking_offer_snapshot o ON o.booking_id = b.id
-		 %s
-		 ORDER BY b.created_at DESC
-		 LIMIT $%d OFFSET $%d`,
-		where, limitIdx, offsetIdx,
-	)
-	return q, args
 }
 
 func (r *BookingRepo) GetStatusHistory(ctx context.Context, bookingID string) ([]booking.StatusHistoryEntry, error) {

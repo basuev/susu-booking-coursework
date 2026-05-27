@@ -17,15 +17,15 @@ type ListBookings struct {
 }
 
 type ListBookingsHandler struct {
-	repo booking.Repository
+	reader ProjectionReader
 }
 
-func NewListBookingsHandler(repo booking.Repository) *ListBookingsHandler {
-	return &ListBookingsHandler{repo: repo}
+func NewListBookingsHandler(reader ProjectionReader) *ListBookingsHandler {
+	return &ListBookingsHandler{reader: reader}
 }
 
-func (h *ListBookingsHandler) Handle(ctx context.Context, q ListBookings) ([]*booking.Booking, error) {
-	return h.repo.List(ctx, booking.ListFilter{
+func (h *ListBookingsHandler) Handle(ctx context.Context, q ListBookings) ([]ProjectionItem, error) {
+	return h.reader.ListByGuest(ctx, ProjectionFilter{
 		GuestID:     q.GuestID,
 		Status:      q.Status,
 		CheckInFrom: q.CheckInFrom,

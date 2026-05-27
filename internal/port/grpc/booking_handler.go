@@ -149,8 +149,8 @@ func (h *BookingHandler) ListBookings(ctx context.Context, req *pb.ListBookingsR
 	}
 
 	summaries := make([]*pb.BookingSummary, 0, len(items))
-	for _, b := range items {
-		summaries = append(summaries, bookingToSummary(b))
+	for _, p := range items {
+		summaries = append(summaries, projectionItemToSummary(p))
 	}
 
 	resp := &pb.ListBookingsResponse{Bookings: summaries}

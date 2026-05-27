@@ -44,10 +44,6 @@ func (r *fakeBookingRepo) FindByID(_ context.Context, id string) (*booking.Booki
 	return b, nil
 }
 
-func (r *fakeBookingRepo) List(_ context.Context, _ booking.ListFilter) ([]*booking.Booking, error) {
-	return nil, nil
-}
-
 func (r *fakeBookingRepo) GetStatusHistory(_ context.Context, _ string) ([]booking.StatusHistoryEntry, error) {
 	return nil, nil
 }

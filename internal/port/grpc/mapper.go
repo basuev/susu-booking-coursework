@@ -11,6 +11,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	pb "gitverse.ru/basuev/susu-booking-coursework/gen/go/booking/v1"
+	"gitverse.ru/basuev/susu-booking-coursework/internal/app/query"
 	"gitverse.ru/basuev/susu-booking-coursework/internal/domain"
 	"gitverse.ru/basuev/susu-booking-coursework/internal/domain/booking"
 )
@@ -164,6 +165,20 @@ func bookingToSummary(b *booking.Booking) *pb.BookingSummary {
 		TotalPrice: moneyToProto(b.Total()),
 		Status:     statusToProto(b.Status()),
 		CreatedAt:  timestamppb.New(b.CreatedAt()),
+	}
+}
+
+func projectionItemToSummary(p query.ProjectionItem) *pb.BookingSummary {
+	money, _ := booking.NewMoney(p.TotalMinor, p.Currency)
+	return &pb.BookingSummary{
+		Id:         p.ID,
+		GuestId:    p.GuestID,
+		HotelId:    p.HotelID,
+		CheckIn:    timestamppb.New(p.CheckIn),
+		CheckOut:   timestamppb.New(p.CheckOut),
+		TotalPrice: moneyToProto(money),
+		Status:     statusToProto(p.Status),
+		CreatedAt:  timestamppb.New(p.CreatedAt),
 	}
 }
 
