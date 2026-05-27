@@ -16,6 +16,7 @@ import (
 	"gitverse.ru/basuev/susu-booking-coursework/internal/adapter/natsx"
 	"gitverse.ru/basuev/susu-booking-coursework/internal/adapter/outbox"
 	"gitverse.ru/basuev/susu-booking-coursework/internal/adapter/postgres"
+	"gitverse.ru/basuev/susu-booking-coursework/internal/adapter/projector"
 	"gitverse.ru/basuev/susu-booking-coursework/internal/app/command"
 	"gitverse.ru/basuev/susu-booking-coursework/internal/app/query"
 	"gitverse.ru/basuev/susu-booking-coursework/internal/config"
@@ -53,15 +54,17 @@ func main() {
 	repo := postgres.NewBookingRepo(db)
 	idempotencyRepo := postgres.NewIdempotencyRepo(db)
 	txManager := postgres.NewTxManager(db)
+	projectionRepo := postgres.NewProjectionRepo(db)
 	outboxRepo := outbox.NewRepo(db)
 	outboxWorker := outbox.NewWorker(outboxRepo, natsClient)
+	projectorWorker := projector.NewWorker(projectionRepo, natsClient)
 
 	createHandler := command.NewCreateBookingHandler(repo, idempotencyRepo, txManager)
 	cancelHandler := command.NewCancelBookingHandler(repo)
 	approveHandler := command.NewApproveBookingHandler(repo)
 	rejectHandler := command.NewRejectBookingHandler(repo)
 	getHandler := query.NewGetBookingHandler(repo)
-	listHandler := query.NewListBookingsHandler(repo)
+	listHandler := query.NewListBookingsHandler(projectionRepo)
 
 	handler := grpcport.NewBookingHandler(
 		createHandler, cancelHandler, approveHandler, rejectHandler,
@@ -87,6 +90,14 @@ func main() {
 		defer wg.Done()
 		if err := outboxWorker.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
 			slog.Error("outbox worker stopped", "error", err)
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if err := projectorWorker.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
+			slog.Error("projector worker stopped", "error", err)
 		}
 	}()
 
