@@ -89,3 +89,10 @@ func (c *Client) Close() {
 		c.conn.Close()
 	}
 }
+
+func (c *Client) Status() nats.Status {
+	if c.conn == nil {
+		return nats.DISCONNECTED
+	}
+	return c.conn.Status()
+}

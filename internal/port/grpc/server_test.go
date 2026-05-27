@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -512,10 +513,56 @@ func TestServerLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
 	}
+	if srv.Health() == nil {
+		t.Fatalf("expected health server registered")
+	}
 	go func() { _ = srv.Start() }()
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	srv.Shutdown(ctx)
+}
+
+func TestServer_HealthCheckRPC(t *testing.T) {
+	t.Parallel()
+	repo := newFakeBookingRepo()
+	idem := newFakeIdempotency()
+	reader := &fakeProjectionReader{}
+	handler := NewBookingHandler(
+		command.NewCreateBookingHandler(repo, idem, inlineTxManager{}),
+		command.NewCancelBookingHandler(repo),
+		command.NewApproveBookingHandler(repo),
+		command.NewRejectBookingHandler(repo),
+		query.NewGetBookingHandler(repo),
+		query.NewListBookingsHandler(reader),
+	)
+	srv, err := NewServer("127.0.0.1:0", handler)
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+	go func() { _ = srv.Start() }()
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		srv.Shutdown(ctx)
+	})
+
+	addr := srv.listener.Addr().String()
+	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	t.Cleanup(func() { _ = conn.Close() })
+
+	client := healthpb.NewHealthClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	resp, err := client.Check(ctx, &healthpb.HealthCheckRequest{})
+	if err != nil {
+		t.Fatalf("health check: %v", err)
+	}
+	if resp.GetStatus() != healthpb.HealthCheckResponse_SERVING {
+		t.Fatalf("want SERVING, got %s", resp.GetStatus())
+	}
 }
 
 func TestListBookings_ReaderErrorMapsToInternal(t *testing.T) {
