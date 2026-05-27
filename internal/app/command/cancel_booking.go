@@ -3,7 +3,7 @@ package command
 import (
 	"context"
 
-	"github.com/basuev/susu-booking-coursework/internal/domain/booking"
+	"gitverse.ru/basuev/susu-booking-coursework/internal/domain/booking"
 )
 
 type CancelBooking struct {

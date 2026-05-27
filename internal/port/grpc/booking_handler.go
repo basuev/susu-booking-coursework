@@ -9,10 +9,10 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	pb "github.com/basuev/susu-booking-coursework/gen/go/booking/v1"
-	"github.com/basuev/susu-booking-coursework/internal/app/command"
-	"github.com/basuev/susu-booking-coursework/internal/app/query"
-	"github.com/basuev/susu-booking-coursework/internal/domain"
+	pb "gitverse.ru/basuev/susu-booking-coursework/gen/go/booking/v1"
+	"gitverse.ru/basuev/susu-booking-coursework/internal/app/command"
+	"gitverse.ru/basuev/susu-booking-coursework/internal/app/query"
+	"gitverse.ru/basuev/susu-booking-coursework/internal/domain"
 )
 
 const (

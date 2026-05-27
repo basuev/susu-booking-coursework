@@ -3,7 +3,7 @@ package booking
 import (
 	"fmt"
 
-	"github.com/basuev/susu-booking-coursework/internal/domain"
+	"gitverse.ru/basuev/susu-booking-coursework/internal/domain"
 )
 
 type OfferSnapshot struct {

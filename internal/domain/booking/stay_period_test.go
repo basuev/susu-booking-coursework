@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/basuev/susu-booking-coursework/internal/domain"
+	"gitverse.ru/basuev/susu-booking-coursework/internal/domain"
 )
 
 func TestNewStayPeriod(t *testing.T) {

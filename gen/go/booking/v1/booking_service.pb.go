@@ -33,8 +33,8 @@ const file_booking_v1_booking_service_proto_rawDesc = "" +
 	"\fListBookings\x12\x1f.booking.v1.ListBookingsRequest\x1a .booking.v1.ListBookingsResponse\x12T\n" +
 	"\rCancelBooking\x12 .booking.v1.CancelBookingRequest\x1a!.booking.v1.CancelBookingResponse\x12W\n" +
 	"\x0eApproveBooking\x12!.booking.v1.ApproveBookingRequest\x1a\".booking.v1.ApproveBookingResponse\x12T\n" +
-	"\rRejectBooking\x12 .booking.v1.RejectBookingRequest\x1a!.booking.v1.RejectBookingResponseB\xb5\x01\n" +
-	"\x0ecom.booking.v1B\x13BookingServiceProtoP\x01ZEgithub.com/basuev/susu-booking-coursework/gen/go/booking/v1;bookingv1\xa2\x02\x03BXX\xaa\x02\n" +
+	"\rRejectBooking\x12 .booking.v1.RejectBookingRequest\x1a!.booking.v1.RejectBookingResponseB\xb6\x01\n" +
+	"\x0ecom.booking.v1B\x13BookingServiceProtoP\x01ZFgitverse.ru/basuev/susu-booking-coursework/gen/go/booking/v1;bookingv1\xa2\x02\x03BXX\xaa\x02\n" +
 	"Booking.V1\xca\x02\n" +
 	"Booking\\V1\xe2\x02\x16Booking\\V1\\GPBMetadata\xea\x02\vBooking::V1b\x06proto3"
 

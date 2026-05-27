@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/basuev/susu-booking-coursework/internal/domain"
-	"github.com/basuev/susu-booking-coursework/internal/domain/booking"
+	"gitverse.ru/basuev/susu-booking-coursework/internal/domain"
+	"gitverse.ru/basuev/susu-booking-coursework/internal/domain/booking"
 )
 
 type fakeBookingRepo struct {

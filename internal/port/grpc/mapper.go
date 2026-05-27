@@ -10,9 +10,9 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	pb "github.com/basuev/susu-booking-coursework/gen/go/booking/v1"
-	"github.com/basuev/susu-booking-coursework/internal/domain"
-	"github.com/basuev/susu-booking-coursework/internal/domain/booking"
+	pb "gitverse.ru/basuev/susu-booking-coursework/gen/go/booking/v1"
+	"gitverse.ru/basuev/susu-booking-coursework/internal/domain"
+	"gitverse.ru/basuev/susu-booking-coursework/internal/domain/booking"
 )
 
 func decimalToMinorUnits(s string) (int64, error) {

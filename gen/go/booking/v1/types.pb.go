@@ -1193,9 +1193,9 @@ const file_booking_v1_types_proto_rawDesc = "" +
 	"\x18BOOKING_STATUS_CONFIRMED\x10\x02\x12\x1b\n" +
 	"\x17BOOKING_STATUS_APPROVED\x10\x03\x12\x1b\n" +
 	"\x17BOOKING_STATUS_REJECTED\x10\x04\x12\x1c\n" +
-	"\x18BOOKING_STATUS_CANCELLED\x10\x05B\xac\x01\n" +
+	"\x18BOOKING_STATUS_CANCELLED\x10\x05B\xad\x01\n" +
 	"\x0ecom.booking.v1B\n" +
-	"TypesProtoP\x01ZEgithub.com/basuev/susu-booking-coursework/gen/go/booking/v1;bookingv1\xa2\x02\x03BXX\xaa\x02\n" +
+	"TypesProtoP\x01ZFgitverse.ru/basuev/susu-booking-coursework/gen/go/booking/v1;bookingv1\xa2\x02\x03BXX\xaa\x02\n" +
 	"Booking.V1\xca\x02\n" +
 	"Booking\\V1\xe2\x02\x16Booking\\V1\\GPBMetadata\xea\x02\vBooking::V1b\x06proto3"
 

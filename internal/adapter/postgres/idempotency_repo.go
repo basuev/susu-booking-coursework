@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/basuev/susu-booking-coursework/internal/app/command"
+	"gitverse.ru/basuev/susu-booking-coursework/internal/app/command"
 )
 
 type IdempotencyRepo struct {

@@ -13,13 +13,13 @@ import (
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 
-	"github.com/basuev/susu-booking-coursework/internal/adapter/natsx"
-	"github.com/basuev/susu-booking-coursework/internal/adapter/outbox"
-	"github.com/basuev/susu-booking-coursework/internal/adapter/postgres"
-	"github.com/basuev/susu-booking-coursework/internal/app/command"
-	"github.com/basuev/susu-booking-coursework/internal/app/query"
-	"github.com/basuev/susu-booking-coursework/internal/config"
-	grpcport "github.com/basuev/susu-booking-coursework/internal/port/grpc"
+	"gitverse.ru/basuev/susu-booking-coursework/internal/adapter/natsx"
+	"gitverse.ru/basuev/susu-booking-coursework/internal/adapter/outbox"
+	"gitverse.ru/basuev/susu-booking-coursework/internal/adapter/postgres"
+	"gitverse.ru/basuev/susu-booking-coursework/internal/app/command"
+	"gitverse.ru/basuev/susu-booking-coursework/internal/app/query"
+	"gitverse.ru/basuev/susu-booking-coursework/internal/config"
+	grpcport "gitverse.ru/basuev/susu-booking-coursework/internal/port/grpc"
 )
 
 func main() {

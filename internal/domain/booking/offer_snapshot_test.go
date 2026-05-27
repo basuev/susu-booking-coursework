@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/basuev/susu-booking-coursework/internal/domain"
+	"gitverse.ru/basuev/susu-booking-coursework/internal/domain"
 )
 
 func TestNewOfferSnapshot(t *testing.T) {

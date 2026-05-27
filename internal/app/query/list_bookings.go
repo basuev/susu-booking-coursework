@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/basuev/susu-booking-coursework/internal/domain/booking"
+	"gitverse.ru/basuev/susu-booking-coursework/internal/domain/booking"
 )
 
 type ListBookings struct {

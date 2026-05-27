@@ -1,4 +1,4 @@
-module github.com/basuev/susu-booking-coursework
+module gitverse.ru/basuev/susu-booking-coursework
 
 go 1.26.1
 
