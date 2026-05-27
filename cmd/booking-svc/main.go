@@ -12,6 +12,7 @@ import (
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"google.golang.org/grpc"
 
 	"gitverse.ru/basuev/susu-booking-coursework/internal/adapter/natsx"
 	"gitverse.ru/basuev/susu-booking-coursework/internal/adapter/outbox"
@@ -21,6 +22,9 @@ import (
 	"gitverse.ru/basuev/susu-booking-coursework/internal/app/query"
 	"gitverse.ru/basuev/susu-booking-coursework/internal/config"
 	grpcport "gitverse.ru/basuev/susu-booking-coursework/internal/port/grpc"
+	"gitverse.ru/basuev/susu-booking-coursework/internal/port/grpc/interceptors"
+	httpport "gitverse.ru/basuev/susu-booking-coursework/internal/port/http"
+	"gitverse.ru/basuev/susu-booking-coursework/migrations"
 )
 
 func main() {
@@ -32,21 +36,33 @@ func main() {
 
 	db, err := sql.Open("pgx", cfg.DatabaseURL)
 	if err != nil {
-		slog.Error("failed to open database", "error", err)
+		slog.ErrorContext(ctx, "failed to open database", "error", err)
 		os.Exit(1)
 	}
 	defer func() { _ = db.Close() }()
 
+	db.SetMaxOpenConns(cfg.DBMaxOpenConns)
+	db.SetMaxIdleConns(cfg.DBMaxIdleConns)
+	db.SetConnMaxLifetime(cfg.DBConnMaxLifetime)
+
 	pingCtx, pingCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer pingCancel()
 	if err := db.PingContext(pingCtx); err != nil {
-		slog.Error("failed to ping database", "error", err)
+		slog.ErrorContext(ctx, "failed to ping database", "error", err)
 		os.Exit(1)
+	}
+
+	if cfg.RunMigrations {
+		if err := postgres.RunMigrations(db, migrations.FS); err != nil {
+			slog.ErrorContext(ctx, "auto-migration failed", "error", err)
+			os.Exit(1)
+		}
+		slog.InfoContext(ctx, "migrations applied")
 	}
 
 	natsClient, err := natsx.Connect(ctx, cfg.NATSUrl)
 	if err != nil {
-		slog.Error("failed to connect to NATS", "error", err)
+		slog.ErrorContext(ctx, "failed to connect to nats", "error", err)
 		os.Exit(1)
 	}
 	defer natsClient.Close()
@@ -56,7 +72,13 @@ func main() {
 	txManager := postgres.NewTxManager(db)
 	projectionRepo := postgres.NewProjectionRepo(db)
 	outboxRepo := outbox.NewRepo(db)
-	outboxWorker := outbox.NewWorker(outboxRepo, natsClient)
+	outboxWorker := outbox.NewWorker(
+		outboxRepo,
+		natsClient,
+		outbox.WithBatchSize(cfg.OutboxBatchSize),
+		outbox.WithInterval(cfg.OutboxInterval),
+		outbox.WithMaxAttempts(cfg.OutboxMaxAttempts),
+	)
 	projectorWorker := projector.NewWorker(projectionRepo, natsClient)
 
 	createHandler := command.NewCreateBookingHandler(repo, idempotencyRepo, txManager)
@@ -71,11 +93,20 @@ func main() {
 		getHandler, listHandler,
 	)
 
-	srv, err := grpcport.NewServer(":"+cfg.GRPCPort, handler)
+	srv, err := grpcport.NewServer(":"+cfg.GRPCPort, handler,
+		grpc.ChainUnaryInterceptor(
+			interceptors.Recovery(),
+			interceptors.RequestID(),
+			interceptors.Timeout(cfg.RPCTimeout),
+			interceptors.Logging(),
+		),
+	)
 	if err != nil {
-		slog.Error("failed to create gRPC server", "error", err)
+		slog.ErrorContext(ctx, "failed to create grpc server", "error", err)
 		os.Exit(1)
 	}
+
+	healthSrv := httpport.NewServer(cfg.HTTPAddr, db, natsClient)
 
 	var wg sync.WaitGroup
 	grpcErr := make(chan error, 1)
@@ -85,11 +116,18 @@ func main() {
 		grpcErr <- srv.Start()
 	}()
 
+	httpErr := make(chan error, 1)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		httpErr <- healthSrv.Start()
+	}()
+
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		if err := outboxWorker.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
-			slog.Error("outbox worker stopped", "error", err)
+			slog.ErrorContext(ctx, "outbox worker stopped", "error", err)
 		}
 	}()
 
@@ -97,21 +135,27 @@ func main() {
 	go func() {
 		defer wg.Done()
 		if err := projectorWorker.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
-			slog.Error("projector worker stopped", "error", err)
+			slog.ErrorContext(ctx, "projector worker stopped", "error", err)
 		}
 	}()
 
 	select {
 	case <-ctx.Done():
-		slog.Info("shutdown signal received")
+		slog.InfoContext(ctx, "shutdown signal received")
 	case err := <-grpcErr:
-		slog.Error("gRPC server error", "error", err)
+		slog.ErrorContext(ctx, "grpc server error", "error", err)
+		cancel()
+	case err := <-httpErr:
+		slog.ErrorContext(ctx, "http server error", "error", err)
 		cancel()
 	}
 
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
 	defer shutdownCancel()
 	srv.Shutdown(shutdownCtx)
+	if err := healthSrv.Shutdown(shutdownCtx); err != nil {
+		slog.ErrorContext(shutdownCtx, "http server shutdown error", "error", err)
+	}
 	wg.Wait()
 }
 
