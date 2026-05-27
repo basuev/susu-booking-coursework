@@ -86,7 +86,7 @@ func (r *ProjectionRepo) ListByGuest(ctx context.Context, f query.ProjectionFilt
 		args = append(args, *f.CheckInTo)
 		idx++
 	}
-	q += fmt.Sprintf(" ORDER BY updated_at DESC LIMIT $%d OFFSET $%d", idx, idx+1)
+	q += fmt.Sprintf(" ORDER BY updated_at DESC LIMIT $%d OFFSET $%d", idx, idx+1) // #nosec G202
 	args = append(args, f.Limit, f.Offset)
 
 	rows, err := r.db.QueryContext(ctx, q, args...)
