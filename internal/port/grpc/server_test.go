@@ -297,11 +297,11 @@ func TestListBookings_Success(t *testing.T) {
 	}
 
 	res, err := h.client.ListBookings(ctx, &pb.ListBookingsRequest{
-		GuestId:       "g1",
-		StatusFilter:  pb.BookingStatus_BOOKING_STATUS_APPROVED,
-		PageSize:      10,
-		CheckInFrom:   timestamppb.New(time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)),
-		CheckInTo:     timestamppb.New(time.Date(2026, 6, 30, 0, 0, 0, 0, time.UTC)),
+		GuestId:      "g1",
+		StatusFilter: pb.BookingStatus_BOOKING_STATUS_APPROVED,
+		PageSize:     10,
+		CheckInFrom:  timestamppb.New(time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)),
+		CheckInTo:    timestamppb.New(time.Date(2026, 6, 30, 0, 0, 0, 0, time.UTC)),
 	})
 	if err != nil {
 		t.Fatalf("list: %v", err)

@@ -45,13 +45,13 @@ func (f *fakeStore) UpdateStatus(_ context.Context, id, newStatus string, update
 }
 
 type fakeMsg struct {
-	subject  string
-	data     []byte
-	acks     *int
-	naks     *int
-	terms    *int
-	ackErr   error
-	mu       *sync.Mutex
+	subject string
+	data    []byte
+	acks    *int
+	naks    *int
+	terms   *int
+	ackErr  error
+	mu      *sync.Mutex
 }
 
 func (m *fakeMsg) Metadata() (*jetstream.MsgMetadata, error) { return &jetstream.MsgMetadata{}, nil }
@@ -236,8 +236,8 @@ type fakeConsumeContext struct {
 	stopped chan struct{}
 }
 
-func (c *fakeConsumeContext) Stop()                  { close(c.stopped) }
-func (c *fakeConsumeContext) Drain()                 {}
+func (c *fakeConsumeContext) Stop()  { close(c.stopped) }
+func (c *fakeConsumeContext) Drain() {}
 func (c *fakeConsumeContext) Closed() <-chan struct{} {
 	ch := make(chan struct{})
 	return ch

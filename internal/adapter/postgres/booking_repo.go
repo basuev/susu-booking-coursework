@@ -227,32 +227,6 @@ func (r *BookingRepo) scanBooking(row *sql.Row) (*booking.Booking, error) {
 	)
 }
 
-func (r *BookingRepo) scanBookingFromRows(rows *sql.Rows) (*booking.Booking, error) {
-	var (
-		id, guestID, status, currency           string
-		totalAmount                             int64
-		version                                 int
-		checkIn, checkOut, createdAt, updatedAt time.Time
-		offerID, hotelID, roomType, offerCur    string
-		pricePerNight                           int64
-	)
-
-	err := rows.Scan(
-		&id, &guestID, &status, &totalAmount, &currency,
-		&checkIn, &checkOut, &version, &createdAt, &updatedAt,
-		&offerID, &hotelID, &roomType, &pricePerNight, &offerCur,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("booking_repo.scanBookingFromRows: %w", err)
-	}
-
-	return reconstructBooking(
-		id, guestID, status, totalAmount, currency,
-		checkIn, checkOut, version, createdAt, updatedAt,
-		offerID, hotelID, roomType, pricePerNight, offerCur,
-	)
-}
-
 func reconstructBooking(
 	id, guestID, status string, totalAmount int64, currency string,
 	checkIn, checkOut time.Time, version int, createdAt, updatedAt time.Time,
