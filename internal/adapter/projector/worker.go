@@ -78,18 +78,20 @@ func (w *Worker) Run(ctx context.Context) error {
 func (w *Worker) handle(ctx context.Context, msg jetstream.Msg) {
 	op, err := Decode(msg.Subject(), msg.Data())
 	if err != nil {
-		slog.Error("projector decode failed", "subject", msg.Subject(), "error", err)
+		slog.ErrorContext(ctx, "projector decode failed", "subject", msg.Subject(), "error", err)
 		_ = msg.Term()
 		return
 	}
 	if err := w.apply(ctx, op); err != nil {
-		slog.Error("projector apply failed", "subject", msg.Subject(), "error", err)
+		slog.ErrorContext(ctx, "projector apply failed", "subject", msg.Subject(), "error", err)
 		_ = msg.Nak()
 		return
 	}
 	if err := msg.Ack(); err != nil {
-		slog.Error("projector ack failed", "subject", msg.Subject(), "error", err)
+		slog.ErrorContext(ctx, "projector ack failed", "subject", msg.Subject(), "error", err)
+		return
 	}
+	slog.InfoContext(ctx, "projection applied", "subject", msg.Subject())
 }
 
 func (w *Worker) apply(ctx context.Context, op Op) error {

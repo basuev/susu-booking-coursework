@@ -105,16 +105,16 @@ func (w *Worker) Run(ctx context.Context) error {
 			return ctx.Err()
 		case <-drainTicker.C:
 			if err := w.drain(ctx); err != nil {
-				slog.Error("outbox worker drain failed", "error", err)
+				slog.ErrorContext(ctx, "outbox worker drain failed", "error", err)
 			}
 		case <-recoverTicker.C:
 			recovered, err := w.store.RecoverStuck(ctx, w.stuckThreshold)
 			if err != nil {
-				slog.Error("outbox worker recover failed", "error", err)
+				slog.ErrorContext(ctx, "outbox worker recover failed", "error", err)
 				continue
 			}
 			if recovered > 0 {
-				slog.Warn("outbox stuck rows recovered", "count", recovered)
+				slog.WarnContext(ctx, "outbox stuck rows recovered", "count", recovered)
 			}
 		}
 	}
@@ -127,15 +127,17 @@ func (w *Worker) drain(ctx context.Context) error {
 	}
 	for _, row := range rows {
 		if pubErr := w.publisher.Publish(ctx, row.Topic, row.Payload); pubErr != nil {
-			slog.Error("outbox publish failed", "id", row.ID, "topic", row.Topic,
+			slog.ErrorContext(ctx, "outbox publish failed", "id", row.ID, "topic", row.Topic,
 				"attempt", row.AttemptCount, "error", pubErr)
 			if err := w.store.MarkFailed(ctx, row.ID, pubErr, w.maxAttempts); err != nil {
-				slog.Error("outbox mark failed", "id", row.ID, "error", err)
+				slog.ErrorContext(ctx, "outbox mark failed", "id", row.ID, "error", err)
 			}
 			continue
 		}
 		if err := w.store.MarkPublished(ctx, row.ID); err != nil {
-			slog.Error("outbox mark published failed", "id", row.ID, "error", err)
+			slog.ErrorContext(ctx, "outbox mark published failed", "id", row.ID, "error", err)
+		} else {
+			slog.InfoContext(ctx, "outbox message published", "id", row.ID, "topic", row.Topic)
 		}
 	}
 	return nil
