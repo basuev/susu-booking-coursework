@@ -23,6 +23,7 @@ type bookingCreatedPayload struct {
 	BookingID string       `json:"booking_id"`
 	GuestID   string       `json:"guest_id"`
 	HotelID   string       `json:"hotel_id"`
+	RoomType  string       `json:"room_type"`
 	CheckIn   time.Time    `json:"check_in"`
 	CheckOut  time.Time    `json:"check_out"`
 	Total     moneyPayload `json:"total"`
@@ -58,6 +59,7 @@ func FromDomainEvent(e booking.Event) (Message, error) {
 			BookingID: ev.BookingID,
 			GuestID:   ev.GuestID,
 			HotelID:   ev.HotelID,
+			RoomType:  ev.RoomType,
 			CheckIn:   ev.CheckIn,
 			CheckOut:  ev.CheckOut,
 			Total:     moneyPayload{Amount: ev.Total.Amount(), Currency: ev.Total.Currency()},

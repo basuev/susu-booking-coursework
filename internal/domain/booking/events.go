@@ -11,6 +11,7 @@ type BookingCreated struct {
 	BookingID string
 	GuestID   string
 	HotelID   string
+	RoomType  string
 	CheckIn   time.Time
 	CheckOut  time.Time
 	Total     Money
