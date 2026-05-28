@@ -35,7 +35,7 @@ func TestRunMigrations_AppliesAllFromFS(t *testing.T) {
 	defer cancel()
 
 	container, err := tcpostgres.Run(ctx,
-		"postgres:16-alpine",
+		"postgres:18-alpine",
 		tcpostgres.WithDatabase("booking_migrate"),
 		tcpostgres.WithUsername("booking"),
 		tcpostgres.WithPassword("booking"),
@@ -89,7 +89,7 @@ func TestMigrations_DownUpRoundtrip(t *testing.T) {
 	defer cancel()
 
 	container, err := tcpostgres.Run(ctx,
-		"postgres:16-alpine",
+		"postgres:18-alpine",
 		tcpostgres.WithDatabase("booking_roundtrip"),
 		tcpostgres.WithUsername("booking"),
 		tcpostgres.WithPassword("booking"),

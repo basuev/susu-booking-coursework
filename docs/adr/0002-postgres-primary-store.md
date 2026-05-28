@@ -23,7 +23,7 @@
 
 ## Решение
 
-Использовать PostgreSQL 16 как основное хранилище. Доступ — через
+Использовать PostgreSQL 18 как основное хранилище. Доступ — через
 `database/sql` с драйвером `github.com/jackc/pgx/v5/stdlib`. Транзакции
 проходят через порт `TxManager`; `BookingRepo.Save` принимает
 `context.Context`, который может нести `*sql.Tx`, поэтому один и тот же

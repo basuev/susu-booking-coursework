@@ -35,7 +35,7 @@ func newTestDB(t *testing.T) *sql.DB {
 	defer cancel()
 
 	container, err := tcpostgres.Run(ctx,
-		"postgres:16-alpine",
+		"postgres:18-alpine",
 		tcpostgres.WithDatabase("outbox_test"),
 		tcpostgres.WithUsername("booking"),
 		tcpostgres.WithPassword("booking"),
