@@ -14,10 +14,10 @@ type fakeNats struct {
 
 func (f *fakeNats) Status() nats.Status { return f.status }
 
-func TestHealthz_OKWhenAllUp(t *testing.T) {
+func TestHealthz_AlwaysOK(t *testing.T) {
 	t.Parallel()
 
-	s := NewServer(":0", nil, &fakeNats{status: nats.CONNECTED})
+	s := NewServer(":0", nil, &fakeNats{status: nats.DISCONNECTED})
 	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
 	rec := httptest.NewRecorder()
 	s.handleHealthz(rec, req)
@@ -26,25 +26,37 @@ func TestHealthz_OKWhenAllUp(t *testing.T) {
 	}
 }
 
-func TestHealthz_BadWhenNatsDown(t *testing.T) {
+func TestReadyz_OKWhenAllUp(t *testing.T) {
+	t.Parallel()
+
+	s := NewServer(":0", nil, &fakeNats{status: nats.CONNECTED})
+	req := httptest.NewRequest(http.MethodGet, "/readyz", nil)
+	rec := httptest.NewRecorder()
+	s.handleReadyz(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("want 200, got %d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestReadyz_BadWhenNatsDown(t *testing.T) {
 	t.Parallel()
 
 	s := NewServer(":0", nil, &fakeNats{status: nats.DISCONNECTED})
-	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	req := httptest.NewRequest(http.MethodGet, "/readyz", nil)
 	rec := httptest.NewRecorder()
-	s.handleHealthz(rec, req)
+	s.handleReadyz(rec, req)
 	if rec.Code != http.StatusServiceUnavailable {
 		t.Fatalf("want 503, got %d", rec.Code)
 	}
 }
 
-func TestHealthz_OKWithoutNats(t *testing.T) {
+func TestReadyz_OKWithoutNats(t *testing.T) {
 	t.Parallel()
 
 	s := NewServer(":0", nil, nil)
-	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	req := httptest.NewRequest(http.MethodGet, "/readyz", nil)
 	rec := httptest.NewRecorder()
-	s.handleHealthz(rec, req)
+	s.handleReadyz(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("want 200, got %d", rec.Code)
 	}
