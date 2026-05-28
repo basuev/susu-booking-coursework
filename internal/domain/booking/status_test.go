@@ -15,17 +15,10 @@ func TestStatus_CanTransitionTo(t *testing.T) {
 		to     Status
 		wantOk bool
 	}{
-		{StatusPending, StatusConfirmed, true},
 		{StatusPending, StatusApproved, true},
 		{StatusPending, StatusRejected, true},
 		{StatusPending, StatusCancelled, true},
 		{StatusPending, StatusPending, false},
-
-		{StatusConfirmed, StatusApproved, true},
-		{StatusConfirmed, StatusRejected, true},
-		{StatusConfirmed, StatusCancelled, true},
-		{StatusConfirmed, StatusPending, false},
-		{StatusConfirmed, StatusConfirmed, false},
 
 		{StatusApproved, StatusCancelled, false},
 		{StatusApproved, StatusRejected, false},

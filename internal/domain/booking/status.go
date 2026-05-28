@@ -10,15 +10,13 @@ type Status string
 
 const (
 	StatusPending   Status = "PENDING"
-	StatusConfirmed Status = "CONFIRMED"
 	StatusApproved  Status = "APPROVED"
 	StatusRejected  Status = "REJECTED"
 	StatusCancelled Status = "CANCELLED"
 )
 
 var validTransitions = map[Status][]Status{
-	StatusPending:   {StatusConfirmed, StatusApproved, StatusRejected, StatusCancelled},
-	StatusConfirmed: {StatusApproved, StatusRejected, StatusCancelled},
+	StatusPending: {StatusApproved, StatusRejected, StatusCancelled},
 }
 
 func (s Status) CanTransitionTo(target Status) bool {

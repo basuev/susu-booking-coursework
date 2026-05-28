@@ -106,7 +106,6 @@ func offerFromProto(o *pb.OfferSnapshot) (booking.OfferSnapshot, error) {
 
 var statusToProtoMap = map[booking.Status]pb.BookingStatus{
 	booking.StatusPending:   pb.BookingStatus_BOOKING_STATUS_PENDING,
-	booking.StatusConfirmed: pb.BookingStatus_BOOKING_STATUS_CONFIRMED,
 	booking.StatusApproved:  pb.BookingStatus_BOOKING_STATUS_APPROVED,
 	booking.StatusRejected:  pb.BookingStatus_BOOKING_STATUS_REJECTED,
 	booking.StatusCancelled: pb.BookingStatus_BOOKING_STATUS_CANCELLED,
@@ -114,7 +113,6 @@ var statusToProtoMap = map[booking.Status]pb.BookingStatus{
 
 var statusFromProtoMap = map[pb.BookingStatus]booking.Status{
 	pb.BookingStatus_BOOKING_STATUS_PENDING:   booking.StatusPending,
-	pb.BookingStatus_BOOKING_STATUS_CONFIRMED: booking.StatusConfirmed,
 	pb.BookingStatus_BOOKING_STATUS_APPROVED:  booking.StatusApproved,
 	pb.BookingStatus_BOOKING_STATUS_REJECTED:  booking.StatusRejected,
 	pb.BookingStatus_BOOKING_STATUS_CANCELLED: booking.StatusCancelled,

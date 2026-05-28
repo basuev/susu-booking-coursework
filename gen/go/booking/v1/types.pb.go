@@ -27,10 +27,9 @@ type BookingStatus int32
 const (
 	BookingStatus_BOOKING_STATUS_UNSPECIFIED BookingStatus = 0
 	BookingStatus_BOOKING_STATUS_PENDING     BookingStatus = 1
-	BookingStatus_BOOKING_STATUS_CONFIRMED   BookingStatus = 2
-	BookingStatus_BOOKING_STATUS_APPROVED    BookingStatus = 3
-	BookingStatus_BOOKING_STATUS_REJECTED    BookingStatus = 4
-	BookingStatus_BOOKING_STATUS_CANCELLED   BookingStatus = 5
+	BookingStatus_BOOKING_STATUS_APPROVED    BookingStatus = 2
+	BookingStatus_BOOKING_STATUS_REJECTED    BookingStatus = 3
+	BookingStatus_BOOKING_STATUS_CANCELLED   BookingStatus = 4
 )
 
 // Enum value maps for BookingStatus.
@@ -38,18 +37,16 @@ var (
 	BookingStatus_name = map[int32]string{
 		0: "BOOKING_STATUS_UNSPECIFIED",
 		1: "BOOKING_STATUS_PENDING",
-		2: "BOOKING_STATUS_CONFIRMED",
-		3: "BOOKING_STATUS_APPROVED",
-		4: "BOOKING_STATUS_REJECTED",
-		5: "BOOKING_STATUS_CANCELLED",
+		2: "BOOKING_STATUS_APPROVED",
+		3: "BOOKING_STATUS_REJECTED",
+		4: "BOOKING_STATUS_CANCELLED",
 	}
 	BookingStatus_value = map[string]int32{
 		"BOOKING_STATUS_UNSPECIFIED": 0,
 		"BOOKING_STATUS_PENDING":     1,
-		"BOOKING_STATUS_CONFIRMED":   2,
-		"BOOKING_STATUS_APPROVED":    3,
-		"BOOKING_STATUS_REJECTED":    4,
-		"BOOKING_STATUS_CANCELLED":   5,
+		"BOOKING_STATUS_APPROVED":    2,
+		"BOOKING_STATUS_REJECTED":    3,
+		"BOOKING_STATUS_CANCELLED":   4,
 	}
 )
 
@@ -1186,14 +1183,13 @@ const file_booking_v1_types_proto_rawDesc = "" +
 	"booking_id\x18\x01 \x01(\tR\tbookingId\x12\x16\n" +
 	"\x06reason\x18\x02 \x01(\tR\x06reason\"F\n" +
 	"\x15RejectBookingResponse\x12-\n" +
-	"\abooking\x18\x01 \x01(\v2\x13.booking.v1.BookingR\abooking*\xc1\x01\n" +
+	"\abooking\x18\x01 \x01(\v2\x13.booking.v1.BookingR\abooking*\xa3\x01\n" +
 	"\rBookingStatus\x12\x1e\n" +
 	"\x1aBOOKING_STATUS_UNSPECIFIED\x10\x00\x12\x1a\n" +
-	"\x16BOOKING_STATUS_PENDING\x10\x01\x12\x1c\n" +
-	"\x18BOOKING_STATUS_CONFIRMED\x10\x02\x12\x1b\n" +
-	"\x17BOOKING_STATUS_APPROVED\x10\x03\x12\x1b\n" +
-	"\x17BOOKING_STATUS_REJECTED\x10\x04\x12\x1c\n" +
-	"\x18BOOKING_STATUS_CANCELLED\x10\x05B\xad\x01\n" +
+	"\x16BOOKING_STATUS_PENDING\x10\x01\x12\x1b\n" +
+	"\x17BOOKING_STATUS_APPROVED\x10\x02\x12\x1b\n" +
+	"\x17BOOKING_STATUS_REJECTED\x10\x03\x12\x1c\n" +
+	"\x18BOOKING_STATUS_CANCELLED\x10\x04B\xad\x01\n" +
 	"\x0ecom.booking.v1B\n" +
 	"TypesProtoP\x01ZFgitverse.ru/basuev/susu-booking-coursework/gen/go/booking/v1;bookingv1\xa2\x02\x03BXX\xaa\x02\n" +
 	"Booking.V1\xca\x02\n" +

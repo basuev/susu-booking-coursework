@@ -68,25 +68,20 @@ v                                                           v
               |  PENDING   |  initial
               +-----+------+
                     |
-   +----------------+----------------+----------------+
-   |                |                |                |
-   v                v                v                v
-+------+      +---------+      +---------+      +---------+
-|CONF. |      |APPROVED |      |REJECTED |      |CANCELLED|
-+--+---+      +---------+      +---------+      +---------+
-   |          terminal         terminal         terminal
-   +--------+----------+----------+
-            |          |          |
-            v          v          v
-        APPROVED   REJECTED   CANCELLED
+       +------------+------------+
+       |            |            |
+       v            v            v
+  +---------+  +---------+  +---------+
+  |APPROVED |  |REJECTED |  |CANCELLED|
+  +---------+  +---------+  +---------+
+   terminal     terminal     terminal
 ```
 
 Разрешенные переходы (`internal/domain/booking/status.go`):
 
 | Из | Допустимые `To` |
 |------|--------------|
-| `PENDING` | `CONFIRMED`, `APPROVED`, `REJECTED`, `CANCELLED` |
-| `CONFIRMED` | `APPROVED`, `REJECTED`, `CANCELLED` |
+| `PENDING` | `APPROVED`, `REJECTED`, `CANCELLED` |
 | `APPROVED` | (terminal) |
 | `REJECTED` | (terminal) |
 | `CANCELLED` | (terminal) |

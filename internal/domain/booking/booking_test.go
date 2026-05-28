@@ -134,17 +134,11 @@ func TestBooking_Lifecycle(t *testing.T) {
 		}
 	})
 
-	t.Run("confirm then approve", func(t *testing.T) {
+	t.Run("approve from pending", func(t *testing.T) {
 		t.Parallel()
 		b, _ := NewBooking("guest-1", newTestOffer(t), newTestStay(t))
-		if err := b.Confirm(); err != nil {
-			t.Fatalf("confirm: %v", err)
-		}
-		if b.Status() != StatusConfirmed {
-			t.Fatalf("status after Confirm: %s", b.Status())
-		}
 		if err := b.Approve(); err != nil {
-			t.Fatalf("approve after confirm: %v", err)
+			t.Fatalf("approve: %v", err)
 		}
 		if b.Status() != StatusApproved {
 			t.Fatalf("status after Approve: %s", b.Status())
@@ -160,8 +154,8 @@ func TestBooking_Reconstruct(t *testing.T) {
 	total, _ := NewMoney(30000, "RUB")
 	now := time.Now()
 
-	b := Reconstruct("id-1", "guest-1", offer, stay, total, StatusConfirmed, 4, now, now)
-	if b.Status() != StatusConfirmed {
+	b := Reconstruct("id-1", "guest-1", offer, stay, total, StatusApproved, 4, now, now)
+	if b.Status() != StatusApproved {
 		t.Fatalf("status: %s", b.Status())
 	}
 	if b.Version() != 4 {
@@ -183,18 +177,11 @@ func TestBooking_VersionIncrementsOnTransition(t *testing.T) {
 		t.Fatalf("initial version: want 1, got %d", b.Version())
 	}
 
-	if err := b.Confirm(); err != nil {
-		t.Fatalf("confirm: %v", err)
-	}
-	if b.Version() != 2 {
-		t.Fatalf("after confirm: want 2, got %d", b.Version())
-	}
-
 	if err := b.Approve(); err != nil {
 		t.Fatalf("approve: %v", err)
 	}
-	if b.Version() != 3 {
-		t.Fatalf("after approve: want 3, got %d", b.Version())
+	if b.Version() != 2 {
+		t.Fatalf("after approve: want 2, got %d", b.Version())
 	}
 }
 

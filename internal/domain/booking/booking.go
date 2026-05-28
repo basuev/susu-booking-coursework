@@ -133,17 +133,6 @@ func (b *Booking) Reject(reason string) error {
 	return nil
 }
 
-func (b *Booking) Confirm() error {
-	newStatus, err := b.status.TransitionTo(StatusConfirmed)
-	if err != nil {
-		return err
-	}
-	b.status = newStatus
-	b.version++
-	b.updatedAt = time.Now()
-	return nil
-}
-
 func (b *Booking) record(e Event) {
 	b.events = append(b.events, e)
 }

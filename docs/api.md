@@ -15,9 +15,8 @@
 `OfferSnapshot` — `{offer_id, hotel_id, room_type, price_per_night}`.
 Snapshot замораживается на момент создания и больше не перечитывается.
 
-`BookingStatus` — `BOOKING_STATUS_PENDING`, `CONFIRMED`, `APPROVED`,
-`REJECTED`, `CANCELLED`. `UNSPECIFIED` означает «без фильтра» в
-`ListBookings`.
+`BookingStatus` — `BOOKING_STATUS_PENDING`, `APPROVED`, `REJECTED`,
+`CANCELLED`. `UNSPECIFIED` означает «без фильтра» в `ListBookings`.
 
 ## RPC: CreateBooking
 
@@ -95,8 +94,7 @@ Snapshot замораживается на момент создания и бо
 
 `rpc CancelBooking(CancelBookingRequest) returns (CancelBookingResponse)`
 
-Переводит бронирование в `CANCELLED`. Разрешено из `PENDING` и
-`CONFIRMED`.
+Переводит бронирование в `CANCELLED`. Разрешено из `PENDING`.
 
 Запрос:
 
@@ -121,8 +119,7 @@ Snapshot замораживается на момент создания и бо
 
 `rpc ApproveBooking(ApproveBookingRequest) returns (ApproveBookingResponse)`
 
-Переводит бронирование в `APPROVED`. Разрешено из `PENDING` и
-`CONFIRMED`.
+Переводит бронирование в `APPROVED`. Разрешено из `PENDING`.
 
 Запрос:
 
@@ -138,8 +135,8 @@ Snapshot замораживается на момент создания и бо
 
 `rpc RejectBooking(RejectBookingRequest) returns (RejectBookingResponse)`
 
-Переводит бронирование в `REJECTED`. Разрешено из `PENDING` и
-`CONFIRMED`. Причина сохраняется в истории статусов.
+Переводит бронирование в `REJECTED`. Разрешено из `PENDING`. Причина
+сохраняется в истории статусов.
 
 Запрос:
 
