@@ -38,7 +38,8 @@ func (r *ProjectionRepo) Upsert(ctx context.Context, p BookingProjection) error 
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		ON CONFLICT (id) DO UPDATE SET
 			status     = EXCLUDED.status,
-			updated_at = EXCLUDED.updated_at`
+			updated_at = EXCLUDED.updated_at
+		WHERE booking_projection.updated_at < EXCLUDED.updated_at`
 
 	_, err := r.db.ExecContext(ctx, query,
 		p.ID, p.GuestID, p.HotelID, p.RoomType,
@@ -56,7 +57,8 @@ func (r *ProjectionRepo) UpdateStatus(ctx context.Context, id, newStatus string,
 		UPDATE booking_projection
 		   SET status     = $2,
 		       updated_at = $3
-		 WHERE id         = $1`
+		 WHERE id         = $1
+		   AND updated_at < $3`
 	_, err := r.db.ExecContext(ctx, query, id, newStatus, updatedAt)
 	if err != nil {
 		return fmt.Errorf("projection_repo.UpdateStatus: %w", err)

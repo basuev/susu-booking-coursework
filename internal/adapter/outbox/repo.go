@@ -36,18 +36,23 @@ type PendingRow struct {
 
 func (r *Repo) ClaimPending(ctx context.Context, limit int) ([]PendingRow, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`UPDATE outbox_message
-		 SET status = 'IN_FLIGHT',
-		     locked_at = now(),
-		     attempt_count = attempt_count + 1
-		 WHERE id IN (
-		     SELECT id FROM outbox_message
-		     WHERE status = 'PENDING' AND next_retry_at <= now()
-		     ORDER BY created_at
-		     FOR UPDATE SKIP LOCKED
-		     LIMIT $1
+		`WITH claimed AS (
+		     UPDATE outbox_message
+		     SET status = 'IN_FLIGHT',
+		         locked_at = now(),
+		         attempt_count = attempt_count + 1
+		     WHERE id IN (
+		         SELECT id FROM outbox_message
+		         WHERE status = 'PENDING' AND next_retry_at <= now()
+		         ORDER BY created_at
+		         FOR UPDATE SKIP LOCKED
+		         LIMIT $1
+		     )
+		     RETURNING id, topic, key, payload, attempt_count, created_at
 		 )
-		 RETURNING id, topic, key, payload, attempt_count`,
+		 SELECT id, topic, key, payload, attempt_count
+		 FROM claimed
+		 ORDER BY created_at`,
 		limit,
 	)
 	if err != nil {
